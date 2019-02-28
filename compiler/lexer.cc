@@ -5,37 +5,18 @@
 namespace lang {
 namespace compiler {
 
-Token::Operator char_to_op(const char op) {
-  switch (op) {
-  case '(':
-    return Token::Operator::opLPAREN;
-  case ')':
-    return Token::Operator::opRPAREN;
-  case '[':
-    return Token::Operator::opLSQUARE;
-  case ']':
-    return Token::Operator::opRSQUARE;
-  case '{':
-    return Token::Operator::opLCURLY;
-  case '}':
-    return Token::Operator::opRCURLY;
-  default:
-    return Token::Operator::opINVALID;
-  }
-}
-
-Token check_for_keywords(const std::string &id) {
-  if (id == "def") {
+std::unique_ptr<Token> check_for_keywords(std::unique_ptr<std::string> id) {
+  if (*id == "def") {
     return Token::make_keyword(Token::Keyword::kwDEF);
-  } else if (id == "var") {
+  } else if (*id == "var") {
     return Token::make_keyword(Token::Keyword::kwVAR);
-  } else if (id == "val") {
+  } else if (*id == "val") {
     return Token::make_keyword(Token::Keyword::kwVAL);
   }
-  return Token::make_identifier(id);
+  return Token::make_identifier(std::move(id));
 }
 
-const std::string keyword_to_string(const Token::Keyword keyword) {
+const std::string to_string(const Token::Keyword keyword) {
   switch (keyword) {
   case Token::Keyword::kwDEF:
     return "def";
@@ -43,10 +24,12 @@ const std::string keyword_to_string(const Token::Keyword keyword) {
     return "var";
   case Token::Keyword::kwVAL:
     return "val";
+  default:
+    return "kwINVALID";
   }
 }
 
-const std::string op_to_string(const Token::Operator op) {
+const std::string to_string(const Token::Operator op) {
   switch (op) {
   case Token::Operator::opLPAREN:
     return "(";
@@ -60,9 +43,23 @@ const std::string op_to_string(const Token::Operator op) {
     return "{";
   case Token::Operator::opRCURLY:
     return "}";
+  case Token::Operator::opCOMMA:
+    return ",";
+  case Token::Operator::opEQUAL:
+    return "=";
+  case Token::Operator::opPLUS:
+    return "+";
+  case Token::Operator::opDASH:
+    return "-";
+  case Token::Operator::opSTAR:
+    return "*";
+  case Token::Operator::opSLASH:
+    return "/";
+  case Token::Operator::opCOMPARE:
+    return "==";
   case Token::Operator::opINVALID:
   default:
-    return "INVALID";
+    return "opINVALID";
   }
 }
 
@@ -72,29 +69,21 @@ Lexer::Lexer(const std::string &name, std::istream &in)
 
 Lexer::~Lexer() {}
 
-Token &Token::operator=(const Token &o) {
-  this->type_ = o.type_;
+Token::~Token() {
   switch (type_) {
-  case Type::tKEYWORD:
-    this->u_.keyword = o.u_.keyword;
-    break;
   case Type::tIDENTIFIER:
-    this->u_.identifier_value = o.u_.identifier_value;
-    break;
   case Type::tSTRING:
-    this->u_.string_value = o.u_.string_value;
+    delete u_.string;
     break;
-  case Type::tINVALID:
-  case Type::tEOF:
-  case Type::tOPERATOR:
-    this->u_.op = o.u_.op;
   case Type::tCHARACTER:
-  case Type::tINTEGER:
+  case Type::tEOF:
   case Type::tFLOAT:
-    /* nothing */
+  case Type::tINTEGER:
+  case Type::tINVALID:
+  case Type::tKEYWORD:
+  case Type::tOPERATOR:
     break;
   }
-  return *this;
 }
 
 const std::string Token::string() const {
@@ -109,24 +98,25 @@ const std::string Token::string() const {
     break;
   case Type::tKEYWORD:
     buf << "keyword ";
-    buf << keyword_to_string(u_.keyword);
+    buf << to_string(u_.keyword);
     break;
   case Type::tIDENTIFIER:
     buf << "id ";
-    buf << (*u_.string_value);
+    buf << *u_.string;
     break;
   case Type::tSTRING:
     buf << "str";
+    buf << *u_.string;
     break;
   case Type::tOPERATOR:
     buf << "op ";
-    buf << op_to_string(u_.op);
+    buf << to_string(u_.op);
     break;
   case Type::tCHARACTER:
     buf << "char";
     break;
   case Type::tINTEGER:
-    buf << "int";
+    buf << "int " << u_.integer;
     break;
   case Type::tFLOAT:
     buf << "float";
@@ -137,7 +127,17 @@ const std::string Token::string() const {
   return buf.str();
 }
 
-Token Lexer::lex() {
+std::vector<std::unique_ptr<Token>> Lexer::reset() {
+  std::vector<std::unique_ptr<Token>> tokens;
+  if (lineit_ != line_.cend()) {
+    while (lineit_ != line_.cend()) {
+      tokens.emplace_back(lex());
+    }
+  }
+  return tokens;
+}
+
+std::unique_ptr<Token> Lexer::lex() {
   if (!require_line()) {
     return Token::make_eof();
   }
@@ -164,19 +164,70 @@ Token Lexer::lex() {
       // clang-format on
       return gather_identifier();
       // clang-format off
+      // clang-format off
+    case '0': case '1': case '2': case '3': case '4': case '5': case '6':
+    case '7': case '8': case '9':
+      return gather_numeric();
+      // clang-format off
+    case '+': case '-': case '*': case '/':
     case '(': case ')':
     case '{': case '}':
     case '[': case ']':
+    case ',':
+    case '=':
       // clang-format on
-      ++lineit_; // consume the last char.
-      return Token::make_op(char_to_op(cc));
+      return Token::make_op(gather_op());
+    default:
+      return Token::make_invalid();
     }
   }
   return Token::make_invalid();
 }
 
-Token Lexer::gather_identifier() {
-  std::string buf;
+Token::Operator Lexer::gather_op() {
+  unsigned char op = *lineit_;
+  ++lineit_; // consume the last char.
+
+  switch (op) {
+  case '(':
+    return Token::Operator::opLPAREN;
+  case ')':
+    return Token::Operator::opRPAREN;
+  case '[':
+    return Token::Operator::opLSQUARE;
+  case ']':
+    return Token::Operator::opRSQUARE;
+  case '{':
+    return Token::Operator::opLCURLY;
+  case '}':
+    return Token::Operator::opRCURLY;
+  case ',':
+    return Token::Operator::opCOMMA;
+  case '+':
+    return Token::Operator::opPLUS;
+  case '-':
+    return Token::Operator::opDASH;
+  case '*':
+    return Token::Operator::opSTAR;
+  case '/':
+    return Token::Operator::opSLASH;
+  case '=': {
+    op = *lineit_;
+    switch (op) {
+    case '=':
+      ++lineit_; // consume the last =.
+      return Token::Operator::opCOMPARE;
+    default:
+      return Token::Operator::opEQUAL;
+    }
+  }
+  default:
+    return Token::Operator::opINVALID;
+  }
+}
+
+std::unique_ptr<Token> Lexer::gather_identifier() {
+  auto buf = std::make_unique<std::string>();
   for (; lineit_ != line_.cend(); ++lineit_) {
     unsigned char cc = *lineit_;
     if (cc <= 0x7f) {
@@ -189,7 +240,7 @@ Token Lexer::gather_identifier() {
 
         return Token::make_invalid();
       } else {
-        buf.push_back(cc);
+        buf->push_back(cc);
       }
     } else {
       // TODO: handle non-ascii
@@ -197,7 +248,30 @@ Token Lexer::gather_identifier() {
     }
   }
 
-  return check_for_keywords(buf);
+  return check_for_keywords(std::move(buf));
+}
+
+std::unique_ptr<Token> Lexer::gather_numeric() {
+  std::string buf;
+  for (; lineit_ != line_.cend(); ++lineit_) {
+    unsigned char cc = *lineit_;
+    if (cc <= 0x7f) {
+      if ((cc < '0' || cc > '9')) {
+        if ((cc >= ' ' && cc < 0x7f) || cc == '\t' || cc == '\r' ||
+            cc == '\n') {
+          break;
+        }
+
+        return Token::make_invalid();
+      } else {
+        buf.push_back(cc);
+      }
+    } else {
+      return Token::make_invalid();
+    }
+  }
+
+  return Token::make_integer(std::stoi(buf));
 }
 
 bool Lexer::require_line() {
@@ -210,7 +284,7 @@ bool Lexer::require_line() {
     lineit_ = line_.cbegin();
     ++lineno_;
     lineoff_ = 1;
-    return true;
+    return in_.good();
   }
 
   return false;

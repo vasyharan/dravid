@@ -1,0 +1,11 @@
+(fn (proto foo
+           ((param var a)
+            (param var b)
+            (param var c)))
+    ((asgn 
+      (id foo)
+      (*
+       (+
+        (int 10)
+        (int 10))
+       (int 10)))))

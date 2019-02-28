@@ -12,7 +12,7 @@
 /compile_commands.json
 
 # test output
-/_fixtures/**/*.out
+**/_fixtures/**/*.out
 
 # generated files
 /config.h

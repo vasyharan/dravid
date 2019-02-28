@@ -7,6 +7,7 @@ set(CMAKE_CXX_COMPILER "clang++")
 option (USE_BOOST_FILESYSTEM "Use boost filesystem" OFF)
 
 configure_file("${PROJECT_SOURCE_DIR}/config.h.in" "${PROJECT_SOURCE_DIR}/config.h")
+enable_testing()
 
 # cmake builds extensions
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/third_party/sanitizers-cmake/cmake" ${CMAKE_MODULE_PATH})
