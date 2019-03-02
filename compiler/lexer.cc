@@ -284,7 +284,7 @@ bool Lexer::require_line() {
     lineit_ = line_.cbegin();
     ++lineno_;
     lineoff_ = 1;
-    return in_.good();
+    return in_.good() || lineit_ != line_.cend();
   }
 
   return false;

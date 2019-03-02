@@ -4,8 +4,12 @@
             (param var c)))
     ((asgn 
       (id foo)
-      (*
-       (+
-        (int 10)
-        (int 10))
-       (int 10)))))
+      (-
+       (*
+        (+
+         (id a)
+         (int 10))
+        (id b))
+       (/
+        (int 1)
+        (id c))))))

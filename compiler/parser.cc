@@ -111,7 +111,7 @@ Parser::parse_fn_body(Context &ctx) {
   }
 
   token = advance();
-  if (!token->is_operator(Token::Operator::opRPAREN)) {
+  if (!token->is_operator(Token::Operator::opRCURLY)) {
     // TODO: report error.
     return body;
   }
@@ -196,60 +196,50 @@ std::unique_ptr<const ast::Expression> Parser::parse_expr(Context &ctx) {
   case Token::Operator::opEQUAL:
     return parse_assign(ctx, std::move(lhs));
   default:
-    return parse_binary_expr(ctx, 0, std::move(lhs));
+    return parse_binary_expr(ctx, Precedence::NORMAL, std::move(lhs));
   }
 }
 
+Parser::Precedence determine_precedence(const Token &token) {
+  if (!token.is_operator())
+    return Parser::Precedence::INVALID;
+  switch (token.op()) {
+  default:
+    return Parser::Precedence::INVALID;
+  case Token::Operator::opSTAR:
+  case Token::Operator::opSLASH:
+    return Parser::Precedence::MULOP;
+  case Token::Operator::opPLUS:
+  case Token::Operator::opDASH:
+    return Parser::Precedence::ADDOP;
+  }
+}
 std::unique_ptr<const ast::Expression>
 Parser::parse_binary_expr(Context &ctx, int expr_precedence,
                           std::unique_ptr<const ast::Expression> lhs) {
   while (true) {
     auto token = peek();
-    auto op = token->op();
 
-    int tok_precedence;
-    switch (op) {
-    default:
-      tok_precedence = Precedence::INVALID;
-      break;
-    case Token::Operator::opSTAR:
-    case Token::Operator::opSLASH:
-      tok_precedence = Precedence::MULOP;
-      break;
-    case Token::Operator::opPLUS:
-    case Token::Operator::opDASH:
-      tok_precedence = Precedence::ADDOP;
-      break;
-    }
-
+    int tok_precedence = determine_precedence(*token);
     if (tok_precedence < expr_precedence)
       return lhs;
 
-    advance(); // eat op token
-
+    auto op = advance()->op();
     auto rhs = parse_primary(ctx);
-    if (!rhs)
+    if (!rhs) {
+      // TODO: report error.
       return nullptr;
-
-    int next_precedence;
-    switch (op) {
-    default:
-      next_precedence = Precedence::INVALID;
-      break;
-    case Token::Operator::opSTAR:
-    case Token::Operator::opSLASH:
-      next_precedence = Precedence::MULOP;
-      break;
-    case Token::Operator::opPLUS:
-    case Token::Operator::opDASH:
-      next_precedence = Precedence::ADDOP;
-      break;
     }
 
+    token = peek();
+
+    int next_precedence = determine_precedence(*token);
     if (tok_precedence < next_precedence) {
       rhs = parse_binary_expr(ctx, tok_precedence, std::move(rhs));
-      if (!rhs)
+      if (!rhs) {
+        // TODO: report error.
         return nullptr;
+      }
     }
 
     lhs = std::make_unique<const ast::BinaryExpression>(op, std::move(lhs),

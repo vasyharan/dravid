@@ -9,13 +9,6 @@ namespace lang {
 namespace compiler {
 
 class Parser {
-  enum Precedence {
-    INVALID = -1,
-    NORMAL = 0,
-    ADDOP,
-    MULOP,
-  };
-
   ILexer &lexer_;
   std::unique_ptr<Token> curr_token_, next_token_;
 
@@ -41,6 +34,13 @@ class Parser {
   std::unique_ptr<const ast::Integer> parse_integer(Context &);
 
 public:
+  enum Precedence {
+    INVALID = -1,
+    NORMAL = 0,
+    ADDOP,
+    MULOP,
+  };
+
   Parser(ILexer &lexer);
   Parser(const Parser &) = delete;
   Parser(Parser &&) = delete;
