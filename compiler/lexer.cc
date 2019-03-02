@@ -275,19 +275,14 @@ std::unique_ptr<Token> Lexer::gather_numeric() {
 }
 
 bool Lexer::require_line() {
-  if (lineit_ != line_.cend()) {
-    return true;
-  }
-
-  if (in_.good()) {
+  while (in_.good() && lineit_ == line_.cend()) {
     std::getline(in_, line_);
     lineit_ = line_.cbegin();
     ++lineno_;
     lineoff_ = 1;
-    return in_.good() || lineit_ != line_.cend();
   }
 
-  return false;
+  return lineit_ != line_.cend();
 }
 
 } // namespace compiler
