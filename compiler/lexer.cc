@@ -5,17 +5,6 @@
 namespace lang {
 namespace compiler {
 
-std::unique_ptr<Token> check_for_keywords(std::unique_ptr<std::string> id) {
-  if (*id == "def") {
-    return Token::make_keyword(Token::Keyword::kwDEF);
-  } else if (*id == "var") {
-    return Token::make_keyword(Token::Keyword::kwVAR);
-  } else if (*id == "val") {
-    return Token::make_keyword(Token::Keyword::kwVAL);
-  }
-  return Token::make_identifier(std::move(id));
-}
-
 const std::string to_string(const Token::Keyword keyword) {
   switch (keyword) {
   case Token::Keyword::kwDEF:
@@ -63,9 +52,33 @@ const std::string to_string(const Token::Operator op) {
   }
 }
 
-Lexer::Lexer(const std::string &name, std::istream &in)
+Reader::Reader(const std::string &name, std::istream &in)
     : name_(name), in_(in), line_(), lineit_(line_.cbegin()), lineoff_(0),
       lineno_(0) {}
+Reader::~Reader() { /* in_.close();  */
+}
+
+bool Reader::good() { return lineit_ != line_.cend(); }
+Reader &Reader::operator++() {
+  ++lineoff_;
+  ++lineit_;
+  return *this;
+}
+bool Reader::require_line() {
+  while (in_.good() && lineit_ == line_.cend()) {
+    std::getline(in_, line_);
+    lineit_ = line_.cbegin();
+    ++lineno_;
+    lineoff_ = 0;
+  }
+
+  return lineit_ != line_.cend();
+}
+unsigned char Reader::read() { return *lineit_; }
+Token::Location Reader::loc() { return Token::Location(lineno_, lineoff_); }
+
+Lexer::Lexer(const std::string &name, std::istream &in)
+    : reader_(Reader(name, in)) {}
 
 Lexer::~Lexer() {}
 
@@ -123,34 +136,39 @@ const std::string Token::string() const {
     break;
   }
 
+  buf << " " << loc_.line() << ":" << loc_.col();
+
   buf << ')';
   return buf.str();
 }
 
 std::vector<std::unique_ptr<Token>> Lexer::reset() {
   std::vector<std::unique_ptr<Token>> tokens;
-  if (lineit_ != line_.cend()) {
-    while (lineit_ != line_.cend()) {
-      tokens.emplace_back(lex());
-    }
+  while (reader_.good()) {
+    tokens.emplace_back(lex());
   }
   return tokens;
 }
 
 std::unique_ptr<Token> Lexer::lex() {
-  if (!require_line()) {
+  if (!reader_.require_line()) {
     return Token::make_eof();
   }
 
-  while (lineit_ != line_.cend()) {
-    unsigned char cc = *lineit_;
+  while (reader_.good()) {
+    Token::Location loc = reader_.loc();
+    unsigned char cc = reader_.read();
+
     switch (cc) {
     case ' ':
     case '\t':
     case '\r':
-      ++lineit_;
-      while (*lineit_ == ' ' || *lineit_ == '\t' || *lineit_ == '\r')
-        ++lineit_;
+      ++reader_;
+      cc = reader_.read();
+      while (cc == ' ' || cc == '\t' || cc == '\r') {
+        ++reader_;
+        cc = reader_.read();
+      }
       break;
       // clang-format off
     case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
@@ -176,7 +194,7 @@ std::unique_ptr<Token> Lexer::lex() {
     case ',':
     case '=':
       // clang-format on
-      return Token::make_op(gather_op());
+      return Token::make_op(parse_op(), loc);
     default:
       return Token::make_invalid();
     }
@@ -184,9 +202,9 @@ std::unique_ptr<Token> Lexer::lex() {
   return Token::make_invalid();
 }
 
-Token::Operator Lexer::gather_op() {
-  unsigned char op = *lineit_;
-  ++lineit_; // consume the last char.
+Token::Operator Lexer::parse_op() {
+  unsigned char op = reader_.read();
+  ++reader_; // consume the last char.
 
   switch (op) {
   case '(':
@@ -212,10 +230,10 @@ Token::Operator Lexer::gather_op() {
   case '/':
     return Token::Operator::opSLASH;
   case '=': {
-    op = *lineit_;
+    op = reader_.read();
     switch (op) {
     case '=':
-      ++lineit_; // consume the last =.
+      ++reader_; // consume the last =.
       return Token::Operator::opCOMPARE;
     default:
       return Token::Operator::opEQUAL;
@@ -226,10 +244,24 @@ Token::Operator Lexer::gather_op() {
   }
 }
 
+Token::Keyword Lexer::parse_keyword(const std::string &id) {
+  if (id == "def") {
+    return Token::Keyword::kwDEF;
+  } else if (id == "var") {
+    return Token::Keyword::kwVAR;
+  } else if (id == "val") {
+    return Token::Keyword::kwVAL;
+  }
+
+  return Token::Keyword::kwINVALID;
+}
+
 std::unique_ptr<Token> Lexer::gather_identifier() {
+  auto loc = reader_.loc();
   auto buf = std::make_unique<std::string>();
-  for (; lineit_ != line_.cend(); ++lineit_) {
-    unsigned char cc = *lineit_;
+
+  for (; reader_.good(); ++reader_) {
+    unsigned char cc = reader_.read();
     if (cc <= 0x7f) {
       if ((cc < 'A' || cc > 'Z') && (cc < 'a' || cc > 'z') && cc != '_' &&
           (cc < '0' || cc > '9')) {
@@ -248,13 +280,18 @@ std::unique_ptr<Token> Lexer::gather_identifier() {
     }
   }
 
-  return check_for_keywords(std::move(buf));
+  auto keyword = parse_keyword(*buf);
+  return keyword == Token::Keyword::kwINVALID
+             ? Token::make_identifier(std::move(buf), loc)
+             : Token::make_keyword(keyword, loc);
 }
 
 std::unique_ptr<Token> Lexer::gather_numeric() {
   std::string buf;
-  for (; lineit_ != line_.cend(); ++lineit_) {
-    unsigned char cc = *lineit_;
+  auto loc = reader_.loc();
+
+  for (; reader_.good(); ++reader_) {
+    unsigned char cc = reader_.read();
     if (cc <= 0x7f) {
       if ((cc < '0' || cc > '9')) {
         if ((cc >= ' ' && cc < 0x7f) || cc == '\t' || cc == '\r' ||
@@ -271,19 +308,19 @@ std::unique_ptr<Token> Lexer::gather_numeric() {
     }
   }
 
-  return Token::make_integer(std::stoi(buf));
+  return Token::make_integer(std::stoi(buf), loc);
 }
 
-bool Lexer::require_line() {
-  while (in_.good() && lineit_ == line_.cend()) {
-    std::getline(in_, line_);
-    lineit_ = line_.cbegin();
-    ++lineno_;
-    lineoff_ = 1;
-  }
+// bool Lexer::require_line() {
+//   while (in_.good() && lineit_ == line_.cend()) {
+//     std::getline(in_, line_);
+//     lineit_ = line_.cbegin();
+//     ++lineno_;
+//     lineoff_ = 1;
+//   }
 
-  return lineit_ != line_.cend();
-}
+//   return lineit_ != line_.cend();
+// }
 
 } // namespace compiler
 } // namespace lang

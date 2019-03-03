@@ -13,7 +13,20 @@ namespace compiler {
 
 class Token final {
 public:
+  struct Location {
+    uint32_t line_;
+    uint32_t col_;
+
+  public:
+    Location() : line_(0), col_(0) {}
+    Location(uint32_t line, uint32_t col) : line_(line), col_(col) {}
+
+    uint32_t line() const { return line_; }
+    uint32_t col() const { return col_; }
+  };
+
   enum Keyword {
+    kwINVALID = -1,
     kwDEF = 1,
     kwVAR,
     kwVAL,
@@ -87,30 +100,38 @@ public:
 
   static std::unique_ptr<Token> make_invalid() { return make(Type::tINVALID); }
   static std::unique_ptr<Token> make_eof() { return make(Type::tEOF); }
-  static std::unique_ptr<Token> make_op(const Operator op) {
+  static std::unique_ptr<Token> make_op(const Operator op, const Location loc) {
     auto token = make(Type::tOPERATOR);
     token->u_.op = op;
+    token->loc_ = loc;
     return token;
   }
-  static std::unique_ptr<Token> make_keyword(const Keyword keyword) {
+  static std::unique_ptr<Token> make_keyword(const Keyword keyword,
+                                             const Location loc) {
     auto token = make(Type::tKEYWORD);
     token->u_.keyword = keyword;
+    token->loc_ = loc;
     return token;
   }
   static std::unique_ptr<Token>
-  make_identifier(std::unique_ptr<std::string> name) {
+  make_identifier(std::unique_ptr<std::string> name, const Location loc) {
     auto token = make(Type::tIDENTIFIER);
     token->u_.string = name.release();
+    token->loc_ = loc;
     return token;
   }
-  static std::unique_ptr<Token> make_string(std::unique_ptr<std::string> name) {
+  static std::unique_ptr<Token> make_string(std::unique_ptr<std::string> name,
+                                            const Location loc) {
     auto token = make(Type::tIDENTIFIER);
     token->u_.string = name.release();
+    token->loc_ = loc;
     return token;
   }
-  static std::unique_ptr<Token> make_integer(const int value) {
+  static std::unique_ptr<Token> make_integer(const int value,
+                                             const Location loc) {
     auto token = make(Type::tINTEGER);
     token->u_.integer = value;
+    token->loc_ = loc;
     return token;
   }
 
@@ -124,12 +145,35 @@ private:
   void copy(const Token &);
 
   Type type_;
+  Location loc_;
   union {
     Keyword keyword;
     Operator op;
     int64_t integer;
     const std::string *string;
   } u_;
+};
+
+class Reader {
+  const std::string name_;
+  std::istream &in_;
+
+  std::string line_;
+  std::string::const_iterator lineit_;
+  size_t lineoff_;
+  size_t lineno_;
+
+public:
+  Reader(const std::string &name, std::istream &in);
+  Reader(const Reader &) = delete;
+  Reader(Reader &&) = default;
+  ~Reader();
+
+  bool good();
+  bool require_line();
+  Token::Location loc();
+  unsigned char read();
+  Reader &operator++();
 };
 
 class ILexer {
@@ -142,18 +186,17 @@ public:
 };
 
 class Lexer final : public ILexer {
-  std::unique_ptr<Token> gather_identifier();
-  std::unique_ptr<Token> gather_numeric();
-  Token::Operator gather_op();
   bool require_line();
 
-  const std::string name_;
-  std::istream &in_;
+  Token::Keyword parse_keyword(const std::string &id);
+  Token::Operator parse_op();
 
-  std::string line_;
-  std::string::const_iterator lineit_;
-  size_t lineoff_;
-  size_t lineno_;
+  std::unique_ptr<Token> gather_identifier();
+  std::unique_ptr<Token> gather_numeric();
+
+  std::unique_ptr<Token> check_for_keyword(std::unique_ptr<std::string> id);
+
+  Reader reader_;
 
 public:
   static std::string to_string(const Token::Keyword);
