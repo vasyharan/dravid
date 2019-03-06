@@ -12,7 +12,7 @@ class Parser {
   ILexer &lexer_;
   std::unique_ptr<Token> curr_token_, next_token_;
 
-  Token *advance();
+  std::unique_ptr<Token> advance();
   Token *peek() const;
 
   std::unique_ptr<const ast::Function> parse_fn(Context &);
@@ -24,8 +24,13 @@ class Parser {
   std::unique_ptr<const ast::Expression>
   parse_assign(Context &, std::unique_ptr<const ast::Expression> lhs);
 
-  std::unique_ptr<const ast::Expression> parse_primary(Context &);
+  std::unique_ptr<const ast::Expression> parse_stmt(Context &);
   std::unique_ptr<const ast::Expression> parse_expr(Context &);
+  std::unique_ptr<const ast::Expression> parse_decl(Context &);
+  std::unique_ptr<const ast::Expression> parse_primary(Context &);
+  std::unique_ptr<const ast::Expression> parse_operand(Context &);
+  std::unique_ptr<const ast::Expression> parse_call(Context &,
+                                                    const std::string &);
   std::unique_ptr<const ast::Expression> parse_paren_expr(Context &);
   std::unique_ptr<const ast::Expression>
   parse_binary_expr(Context &, int, std::unique_ptr<const ast::Expression> lhs);

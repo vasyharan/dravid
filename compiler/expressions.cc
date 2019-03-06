@@ -4,7 +4,7 @@ namespace lang {
 namespace compiler {
 namespace ast {
 
-void Assign::print(std::ostream &out, int indent) const {
+void Assignment::print(std::ostream &out, int indent) const {
   out << std::string(indent, ' ') << "(asgn ";
   if (left_ != nullptr) {
     out << "\n";
@@ -38,6 +38,25 @@ void BinaryExpression::print(std::ostream &out, int indent) const {
   out << ")";
 }
 
+void Call::print(std::ostream &out, int indent) const {
+  out << "(call " << name_;
+
+  if (args_.empty()) {
+    out << ")";
+    return;
+  }
+
+  auto it = args_.begin();
+  out << "\n";
+  (*it)->print(out, indent + 7);
+
+  for (++it; it != args_.end(); ++it) {
+    out << "\n";
+    (*it)->print(out, indent + 7);
+  }
+  out << ")";
+}
+
 void Function::print(std::ostream &out, int indent) const {
   out << "(fn ";
   prototype_->print(out, indent + 4);
@@ -49,7 +68,7 @@ void Function::print(std::ostream &out, int indent) const {
 
   auto it = body_.begin();
   out << "\n" << std::string(indent + 4, ' ') << '(';
-  (*it)->print(out);
+  (*it)->print(out, indent + 4);
 
   for (++it; it != body_.end(); ++it) {
     out << "\n";
@@ -67,7 +86,20 @@ void Integer::print(std::ostream &out, int indent) const {
   out << "(int " << value_ << ")";
 }
 
-void Value::print(std::ostream &out, int indent) const {
+void TupleAssignment::print(std::ostream &out, int indent) const {
+  out << std::string(indent, ' ') << "(asgn ";
+  auto lit = left_.begin();
+  (*lit)->print(out);
+  auto rit = right_.begin();
+  (*rit)->print(out);
+
+  for (++lit, ++rit; lit != left_.end() && rit != right_.end(); ++lit, ++rit) {
+    (*lit)->print(out);
+    (*rit)->print(out);
+  }
+}
+
+void Parameter::print(std::ostream &out, int indent) const {
   out << std::string(indent, ' ');
   out << "(param " << (constant_ ? "val" : "var") << " " << name_;
   // if (hasDefault) {
@@ -98,6 +130,17 @@ void Prototype::print(std::ostream &out, int indent) const {
     (*it)->print(out, indent + 8);
   }
   out << "))";
+}
+
+void Value::print(std::ostream &out, int indent) const {
+  out << "(" << (constant_ ? "val" : "var") << " " << name_;
+  if (value_ == nullptr) {
+    out << " nil";
+  } else {
+    out << "\n";
+    value_->print(out, indent + 6);
+  }
+  out << ")";
 }
 
 } // namespace ast

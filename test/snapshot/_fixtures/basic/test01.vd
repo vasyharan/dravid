@@ -1,5 +1,8 @@
 def foo(a, b, c) {
-   foo = (a + 10) * b - 1 / c
+   val bar = (a + 10) * b - 1 / c
+   bar
 }
 
-foo(1, 2, 3)
+def main() {
+  foo(1, 2, 3)
+}

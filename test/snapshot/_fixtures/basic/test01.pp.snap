@@ -2,14 +2,19 @@
            ((param var a)
             (param var b)
             (param var c)))
-    ((asgn 
-      (id foo)
-      (-
-       (*
-        (+
-         (id a)
-         (int 10))
-        (id b))
-       (/
-        (int 1)
-        (id c))))))
+    ((val bar
+          (-
+           (*
+            (+
+             (id a)
+             (int 10))
+            (id b))
+           (/
+            (int 1)
+            (id c))))
+     (id bar)))
+(fn (proto main ())
+    ((call foo
+           (int 1)
+           (int 2)
+           (int 3))))

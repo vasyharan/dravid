@@ -66,12 +66,18 @@ public:
 };
 
 class Value : public Expression {
+protected:
   const bool constant_;
   const std::string name_;
 
+  std::unique_ptr<const Expression> value_;
+
 public:
   Value(bool constant, const std::string &name)
-      : constant_(constant), name_(name) {}
+      : constant_(constant), name_(name), value_(nullptr) {}
+  Value(bool constant, const std::string &name,
+        std::unique_ptr<const Expression> value)
+      : constant_(constant), name_(name), value_(std::move(value)) {}
   Value(const Value &) = delete;
   Value(Value &&) = delete;
 
@@ -84,7 +90,7 @@ public:
   Parameter(const Parameter &) = delete;
   Parameter(Parameter &&) = delete;
 
-  // virtual void print(std::ostream &out, int indent = 0) const override;
+  virtual void print(std::ostream &out, int indent = 0) const override;
 };
 
 class Prototype : public Expression {
@@ -115,17 +121,46 @@ public:
   virtual void print(std::ostream &out, int indent = 0) const override;
 };
 
-class Assign : public Expression {
+class Call : public Expression {
+  const std::string name_;
+  const std::vector<std::unique_ptr<const Expression>> args_;
+
+public:
+  Call(const std::string &name,
+       std::vector<std::unique_ptr<const Expression>> args)
+      : name_(name), args_(std::move(args)) {}
+  Call(const Call &) = delete;
+  Call(Call &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+};
+
+class Assignment : public Expression {
   std::unique_ptr<const Expression> left_;
   std::unique_ptr<const Expression> right_;
 
 public:
-  Assign(std::unique_ptr<const Expression> left,
-         std::unique_ptr<const Expression> right)
+  Assignment(std::unique_ptr<const Expression> left,
+             std::unique_ptr<const Expression> right)
       : left_(std::move(left)), right_(std::move(right)) {}
 
-  Assign(const Assign &) = delete;
-  Assign(Assign &&) = delete;
+  Assignment(const Assignment &) = delete;
+  Assignment(Assignment &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+};
+
+class TupleAssignment : public Expression {
+  const std::vector<std::unique_ptr<const Expression>> left_;
+  const std::vector<std::unique_ptr<const Expression>> right_;
+
+public:
+  TupleAssignment(std::vector<std::unique_ptr<const Expression>> left,
+                  std::vector<std::unique_ptr<const Expression>> right)
+      : left_(std::move(left)), right_(std::move(right)) {}
+
+  TupleAssignment(const TupleAssignment &) = delete;
+  TupleAssignment(TupleAssignment &&) = delete;
 
   virtual void print(std::ostream &out, int indent = 0) const override;
 };
