@@ -5,12 +5,14 @@
 #include <ostream>
 #include <vector>
 
-/* #define MAKE_VISITABLE \ */
-/*   virtual void accept(Visitor &v) const override { v.visit(*this); } */
+#define MAKE_VISITABLE                                                         \
+  virtual void accept(Visitor &v) const override { v.visit(*this); }
 
 namespace lang {
 namespace compiler {
 namespace ast {
+
+class Visitor;
 
 class Expression {
 public:
@@ -22,6 +24,7 @@ public:
 
   // virtual void accept(Visitor &visitor) const = 0;
   virtual void print(std::ostream &out, int indent = 0) const = 0;
+  virtual void accept(Visitor &) const = 0;
 
   friend std::ostream &operator<<(std::ostream &out, const Expression &node) {
     node.print(out);
@@ -29,26 +32,45 @@ public:
   }
 };
 
-class Identifier : public Expression {
-  const std::string name_;
+class Assignment;
+class BinaryExpression;
+class Call;
+class Function;
+class Identifier;
+class Integer;
+class Parameter;
+class Prototype;
+class TupleAssignment;
+class Value;
 
+class Visitor {
 public:
-  Identifier(const std::string &name) : name_(name) {}
-  Identifier(const Identifier &) = delete;
-  Identifier(Identifier &&) = delete;
-
-  void print(std::ostream &out, int indent = 0) const override;
+  virtual void visit(const Assignment &) = 0;
+  virtual void visit(const BinaryExpression &) = 0;
+  virtual void visit(const Call &) = 0;
+  virtual void visit(const Function &) = 0;
+  virtual void visit(const Identifier &) = 0;
+  virtual void visit(const Integer &) = 0;
+  virtual void visit(const Parameter &) = 0;
+  virtual void visit(const Prototype &) = 0;
+  virtual void visit(const TupleAssignment &) = 0;
+  virtual void visit(const Value &) = 0;
 };
 
-class Integer : public Expression {
-  const long value_;
+class Assignment : public Expression {
+  std::unique_ptr<const Expression> left_;
+  std::unique_ptr<const Expression> right_;
 
 public:
-  Integer(long value) : value_(value) {}
-  Integer(const Integer &) = delete;
-  Integer(Integer &&) = delete;
+  Assignment(std::unique_ptr<const Expression> left,
+             std::unique_ptr<const Expression> right)
+      : left_(std::move(left)), right_(std::move(right)) {}
 
-  void print(std::ostream &out, int indent = 0) const override;
+  Assignment(const Assignment &) = delete;
+  Assignment(Assignment &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
 };
 
 class BinaryExpression : public Expression {
@@ -62,7 +84,93 @@ public:
   BinaryExpression(const BinaryExpression &) = delete;
   BinaryExpression(BinaryExpression &&) = delete;
 
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class Call : public Expression {
+  const std::string name_;
+  const std::vector<std::unique_ptr<const Expression>> args_;
+
+public:
+  Call(const std::string &name,
+       std::vector<std::unique_ptr<const Expression>> args)
+      : name_(name), args_(std::move(args)) {}
+  Call(const Call &) = delete;
+  Call(Call &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class Function : public Expression {
+  std::unique_ptr<const Prototype> prototype_;
+  const std::vector<std::unique_ptr<const Expression>> body_;
+
+public:
+  Function(std::unique_ptr<const Prototype> prototype,
+           std::vector<std::unique_ptr<const Expression>> body)
+      : prototype_(std::move(prototype)), body_(std::move(body)) {}
+  Function(const Function &) = delete;
+  Function(Function &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class Identifier : public Expression {
+  const std::string name_;
+
+public:
+  Identifier(const std::string &name) : name_(name) {}
+  Identifier(const Identifier &) = delete;
+  Identifier(Identifier &&) = delete;
+
   void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class Integer : public Expression {
+  const long value_;
+
+public:
+  Integer(long value) : value_(value) {}
+  Integer(const Integer &) = delete;
+  Integer(Integer &&) = delete;
+
+  void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class Prototype : public Expression {
+  const std::string name_;
+  const std::vector<std::unique_ptr<const Parameter>> params_;
+
+public:
+  Prototype(const std::string &name,
+            std::vector<std::unique_ptr<const Parameter>> params)
+      : name_(name), params_(std::move(params)){};
+  Prototype(const Prototype &) = delete;
+  Prototype(Prototype &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class TupleAssignment : public Expression {
+  const std::vector<std::unique_ptr<const Expression>> left_;
+  const std::vector<std::unique_ptr<const Expression>> right_;
+
+public:
+  TupleAssignment(std::vector<std::unique_ptr<const Expression>> left,
+                  std::vector<std::unique_ptr<const Expression>> right)
+      : left_(std::move(left)), right_(std::move(right)) {}
+
+  TupleAssignment(const TupleAssignment &) = delete;
+  TupleAssignment(TupleAssignment &&) = delete;
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
 };
 
 class Value : public Expression {
@@ -82,6 +190,7 @@ public:
   Value(Value &&) = delete;
 
   virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
 };
 
 class Parameter : public Value {
@@ -91,78 +200,7 @@ public:
   Parameter(Parameter &&) = delete;
 
   virtual void print(std::ostream &out, int indent = 0) const override;
-};
-
-class Prototype : public Expression {
-  const std::string name_;
-  const std::vector<std::unique_ptr<const Parameter>> params_;
-
-public:
-  Prototype(const std::string &name,
-            std::vector<std::unique_ptr<const Parameter>> params)
-      : name_(name), params_(std::move(params)){};
-  Prototype(const Prototype &) = delete;
-  Prototype(Prototype &&) = delete;
-
-  virtual void print(std::ostream &out, int indent = 0) const override;
-};
-
-class Function : public Expression {
-  std::unique_ptr<const Prototype> prototype_;
-  const std::vector<std::unique_ptr<const Expression>> body_;
-
-public:
-  Function(std::unique_ptr<const Prototype> prototype,
-           std::vector<std::unique_ptr<const Expression>> body)
-      : prototype_(std::move(prototype)), body_(std::move(body)) {}
-  Function(const Function &) = delete;
-  Function(Function &&) = delete;
-
-  virtual void print(std::ostream &out, int indent = 0) const override;
-};
-
-class Call : public Expression {
-  const std::string name_;
-  const std::vector<std::unique_ptr<const Expression>> args_;
-
-public:
-  Call(const std::string &name,
-       std::vector<std::unique_ptr<const Expression>> args)
-      : name_(name), args_(std::move(args)) {}
-  Call(const Call &) = delete;
-  Call(Call &&) = delete;
-
-  virtual void print(std::ostream &out, int indent = 0) const override;
-};
-
-class Assignment : public Expression {
-  std::unique_ptr<const Expression> left_;
-  std::unique_ptr<const Expression> right_;
-
-public:
-  Assignment(std::unique_ptr<const Expression> left,
-             std::unique_ptr<const Expression> right)
-      : left_(std::move(left)), right_(std::move(right)) {}
-
-  Assignment(const Assignment &) = delete;
-  Assignment(Assignment &&) = delete;
-
-  virtual void print(std::ostream &out, int indent = 0) const override;
-};
-
-class TupleAssignment : public Expression {
-  const std::vector<std::unique_ptr<const Expression>> left_;
-  const std::vector<std::unique_ptr<const Expression>> right_;
-
-public:
-  TupleAssignment(std::vector<std::unique_ptr<const Expression>> left,
-                  std::vector<std::unique_ptr<const Expression>> right)
-      : left_(std::move(left)), right_(std::move(right)) {}
-
-  TupleAssignment(const TupleAssignment &) = delete;
-  TupleAssignment(TupleAssignment &&) = delete;
-
-  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
 };
 
 } // namespace ast
