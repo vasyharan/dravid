@@ -16,11 +16,11 @@ Codegen::Codegen() {}
 Codegen::~Codegen() {}
 
 void Codegen::generate(Context &c) {
-  ctx_ = &c;
-  for (auto &node : ctx_->nodes()) {
+  _ctx = &c;
+  for (auto &node : _ctx->nodes()) {
     node->accept(*this);
   }
-  ctx_ = nullptr;
+  _ctx = nullptr;
 }
 
 void Codegen::visit(const ast::Assignment &asgn) {}
@@ -108,9 +108,9 @@ void Codegen::visit(const ast::Function &fn) {
   builder().SetInsertPoint(block);
 
   // values_.clear();
-  clear_lookup();
+  auto &scope = _ctx->push_scope();
   for (auto &arg : llfn->args()) {
-    add_lookup(arg.getName(), &arg);
+    scope.symbol_add(arg.getName(), &arg);
   }
 
   assert(fn.body().size() == 1);
@@ -127,7 +127,8 @@ void Codegen::visit(const ast::Function &fn) {
 }
 
 void Codegen::visit(const ast::Identifier &id) {
-  auto val = lookup_value(id.name());
+  auto &scope = _ctx->top_scope();
+  auto val = scope.symbol_lookup(id.name());
   if (!val) {
     // report error
     push(nullptr);
@@ -171,6 +172,10 @@ Value *Codegen::pop() {
   stack_.pop();
   return v;
 }
+
+inline llvm::IRBuilder<> &Codegen::builder() { return _ctx->builder(); }
+inline llvm::Module &Codegen::module() { return _ctx->module(); }
+inline llvm::LLVMContext &Codegen::ctx() { return _ctx->llvm(); }
 
 } // namespace codegen
 } // namespace compiler

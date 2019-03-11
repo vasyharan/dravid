@@ -53,10 +53,9 @@ const std::string to_string(const Token::Operator op) {
 }
 
 Reader::Reader(const std::string &name, std::istream &in)
-    : name_(name), in_(in), line_(), lineit_(line_.cbegin()), lineoff_(0),
-      lineno_(0) {}
-Reader::~Reader() { /* in_.close();  */
-}
+    : /* name_(name), */
+      in_(in), line_(), lineit_(line_.cbegin()), lineoff_(0), lineno_(0) {}
+Reader::~Reader() {}
 
 bool Reader::good() { return lineit_ != line_.cend(); }
 Reader &Reader::operator++() {
@@ -190,6 +189,7 @@ std::unique_ptr<Token> Lexer::lex() {
     case '(': case ')':
     case '{': case '}':
     case '[': case ']':
+    case ':': case ';':
     case ',':
     case '=':
       // clang-format on
@@ -220,10 +220,14 @@ Token::Operator Lexer::parse_op() {
     return Token::Operator::opRCURLY;
   case ',':
     return Token::Operator::opCOMMA;
+  case ':':
+    return Token::Operator::opCOLON;
   case '+':
     return Token::Operator::opPLUS;
   case '-':
     return Token::Operator::opDASH;
+  case ';':
+    return Token::Operator::opSEMICOLON;
   case '*':
     return Token::Operator::opSTAR;
   case '/':

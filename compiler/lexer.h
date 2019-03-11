@@ -14,7 +14,7 @@ namespace lang {
 namespace compiler {
 
 class Reader {
-  const std::string &name_;
+  // const std::string &name_;
   std::istream &in_;
 
   std::string line_;

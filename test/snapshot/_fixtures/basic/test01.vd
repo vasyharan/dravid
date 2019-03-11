@@ -5,3 +5,5 @@ def foo(a, b, c) {
 def main() {
   foo(1, 2, 3)
 }
+
+def test(x): 1 + 2 + x

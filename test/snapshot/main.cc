@@ -94,33 +94,50 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     std::fstream in(entry.path().string(), std::ios::in);
     Context ctx(entry.path().string(), in);
 
-    Parser parser;
-    LoggingLexer lexer(ctx);
-    parser.parse(lexer, ctx);
+    {
+      Parser parser;
+      LoggingLexer lexer(ctx);
+      parser.parse(lexer, ctx);
 
-    auto &lexbuf = lexer.finish();
-    compare(lexbuf.str(), testname, ".ll", write_output,
-            with_ext(entry.path(), ".ll.snap"),
-            with_ext(entry.path(), ".ll.out"));
-
-    std::stringstream parsebuf;
-    for (auto &node : ctx.nodes()) {
-      parsebuf << *node << "\n";
+      auto &lexbuf = lexer.finish();
+      compare(lexbuf.str(), testname, ".ll", write_output,
+              with_ext(entry.path(), ".ll.snap"),
+              with_ext(entry.path(), ".ll.out"));
     }
-    parsebuf.flush();
-    compare(parsebuf.str(), testname, ".pp", write_output,
-            with_ext(entry.path(), ".pp.snap"),
-            with_ext(entry.path(), ".pp.out"));
 
-    codegen::Codegen codegen;
-    codegen.generate(ctx);
+    {
+      std::stringstream parsebuf;
+      for (auto &node : ctx.nodes()) {
+        parsebuf << *node << "\n";
+      }
+      parsebuf.flush();
+      compare(parsebuf.str(), testname, ".pp", write_output,
+              with_ext(entry.path(), ".pp.snap"),
+              with_ext(entry.path(), ".pp.out"));
+    }
 
-    std::string codestr;
-    llvm::raw_string_ostream codebuf(codestr);
-    ctx.module().print(codebuf, nullptr);
-    compare(codebuf.str(), testname, ".cg", write_output,
-            with_ext(entry.path(), ".cg.snap"),
-            with_ext(entry.path(), ".cg.out"));
+    if (ctx.errors().empty()) {
+      codegen::Codegen codegen;
+      codegen.generate(ctx);
+
+      std::string codestr;
+      llvm::raw_string_ostream codebuf(codestr);
+      ctx.module().print(codebuf, nullptr);
+      compare(codebuf.str(), testname, ".cg", write_output,
+              with_ext(entry.path(), ".cg.snap"),
+              with_ext(entry.path(), ".cg.out"));
+    }
+
+    {
+      std::stringstream errorbuf;
+      for (auto &err : ctx.errors()) {
+        errorbuf << *err << "\n";
+      }
+      errorbuf.flush();
+      compare(errorbuf.str(), testname, ".err", write_output,
+              with_ext(entry.path(), ".err.snap"),
+              with_ext(entry.path(), ".err.out"));
+    }
   }
 }
 

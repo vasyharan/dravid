@@ -38,6 +38,8 @@ public:
     opCOMMA = 44,
     opDASH = 45,
     opSLASH = 47,
+    opCOLON = 58,
+    opSEMICOLON = 59,
     opEQUAL = 61,
     opLSQUARE = 91,
     opRSQUARE = 93,
