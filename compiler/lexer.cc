@@ -77,8 +77,7 @@ bool Reader::require_line() {
 unsigned char Reader::read() { return *lineit_; }
 Token::Location Reader::loc() { return Token::Location(lineno_, lineoff_); }
 
-Lexer::Lexer(const std::string &name, std::istream &in)
-    : reader_(Reader(name, in)) {}
+Lexer::Lexer(Context &ctx) : reader_(Reader(ctx.name(), ctx.in())) {}
 
 Lexer::~Lexer() {}
 

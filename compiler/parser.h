@@ -9,7 +9,7 @@ namespace lang {
 namespace compiler {
 
 class Parser {
-  ILexer &lexer_;
+  ILexer *lexer_;
   std::unique_ptr<Token> curr_token_, next_token_;
 
   std::unique_ptr<Token> advance();
@@ -46,12 +46,13 @@ public:
     MULOP,
   };
 
-  Parser(ILexer &lexer);
+  Parser();
+  // Parser(ILexer &lexer);
   Parser(const Parser &) = delete;
   Parser(Parser &&) = delete;
   ~Parser();
 
-  void parse(Context &);
+  void parse(ILexer &lexer, Context &);
 };
 
 } // namespace compiler

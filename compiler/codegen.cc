@@ -4,6 +4,7 @@
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Verifier.h>
 
 using namespace llvm;
 
@@ -11,12 +12,16 @@ namespace lang {
 namespace compiler {
 namespace codegen {
 
-Codegen::Codegen(Context &ctx) : ctx_(ctx), builder_(llctx_) {
-  module_ = std::make_unique<Module>("my cool jit", llctx_);
-}
+Codegen::Codegen() {}
 Codegen::~Codegen() {}
 
-const Module &Codegen::module() const { return *module_; }
+void Codegen::generate(Context &c) {
+  ctx_ = &c;
+  for (auto &node : ctx_->nodes()) {
+    node->accept(*this);
+  }
+  ctx_ = nullptr;
+}
 
 void Codegen::visit(const ast::Assignment &asgn) {}
 
@@ -30,16 +35,16 @@ void Codegen::visit(const ast::BinaryExpression &expr) {
   Value *val = nullptr;
   switch (expr.op()) {
   case '+':
-    val = builder_.CreateAdd(left, right, "addtmp");
+    val = builder().CreateAdd(left, right, "addtmp");
     break;
   case '-':
-    val = builder_.CreateSub(left, right, "subtmp");
+    val = builder().CreateSub(left, right, "subtmp");
     break;
   case '*':
-    val = builder_.CreateMul(left, right, "multmp");
+    val = builder().CreateMul(left, right, "multmp");
     break;
   case '/':
-    val = builder_.CreateExactSDiv(left, right, "divtmp");
+    val = builder().CreateExactSDiv(left, right, "divtmp");
     break;
   default:
     // log error
@@ -50,7 +55,7 @@ void Codegen::visit(const ast::BinaryExpression &expr) {
 }
 
 void Codegen::visit(const ast::Call &call) {
-  Function *callee = module_->getFunction(call.name());
+  Function *callee = module().getFunction(call.name());
   if (!callee) {
     // log error;
     push(nullptr);
@@ -75,16 +80,16 @@ void Codegen::visit(const ast::Call &call) {
     args.emplace_back(arg);
   }
 
-  auto val = builder_.CreateCall(callee, args, "calltmp");
+  auto val = builder().CreateCall(callee, args, "calltmp");
   push(val);
 }
 
 void Codegen::visit(const ast::Function &fn) {
-  Function *llfn = module_->getFunction(fn.proto().name());
+  Function *llfn = module().getFunction(fn.proto().name());
   if (!llfn) {
     fn.proto().accept(*this);
     auto created = pop(); // function created by proto.
-    llfn = module_->getFunction(fn.proto().name());
+    llfn = module().getFunction(fn.proto().name());
     assert(created == llfn);
   }
   if (!llfn) {
@@ -99,12 +104,13 @@ void Codegen::visit(const ast::Function &fn) {
     return;
   }
 
-  BasicBlock *block = BasicBlock::Create(llctx_, "entry", llfn);
-  builder_.SetInsertPoint(block);
+  BasicBlock *block = BasicBlock::Create(ctx(), "entry", llfn);
+  builder().SetInsertPoint(block);
 
-  values_.clear();
+  // values_.clear();
+  clear_lookup();
   for (auto &arg : llfn->args()) {
-    values_[arg.getName()] = &arg;
+    add_lookup(arg.getName(), &arg);
   }
 
   assert(fn.body().size() == 1);
@@ -116,12 +122,12 @@ void Codegen::visit(const ast::Function &fn) {
     return;
   }
 
-  builder_.CreateRet(retval);
+  builder().CreateRet(retval);
   push(llfn);
 }
 
 void Codegen::visit(const ast::Identifier &id) {
-  auto val = values_[id.name()];
+  auto val = lookup_value(id.name());
   if (!val) {
     // report error
     push(nullptr);
@@ -132,18 +138,18 @@ void Codegen::visit(const ast::Identifier &id) {
 }
 
 void Codegen::visit(const ast::Integer &integer) {
-  auto val = ConstantInt::get(llctx_, APInt(64, integer.value(), true));
+  auto val = ConstantInt::get(ctx(), APInt(64, integer.value(), true));
   push(val);
 }
 
 void Codegen::visit(const ast::Parameter &param) {}
 
 void Codegen::visit(const ast::Prototype &proto) {
-  std::vector<Type *> params(proto.params().size(), Type::getInt64Ty(llctx_));
-  FunctionType *fntype = FunctionType::get(Type::getInt64Ty(llctx_), params,
-                                           false /* IsVarArgs */);
+  std::vector<Type *> params(proto.params().size(), Type::getInt64Ty(ctx()));
+  FunctionType *fntype =
+      FunctionType::get(Type::getInt64Ty(ctx()), params, false /* IsVarArgs */);
   Function *fn = Function::Create(fntype, Function::ExternalLinkage,
-                                  proto.name(), module_.get());
+                                  proto.name(), &module());
 
   auto arg_it = fn->args().begin();
   auto param_it = proto.params().begin();

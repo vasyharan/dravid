@@ -17,26 +17,35 @@
 #include <llvm/IR/Module.h>
 // #include <llvm/IR/Type.h>
 // #include <llvm/IR/Verifier.h>
+#include <llvm/IR/Value.h>
 
 namespace lang {
 namespace compiler {
 namespace codegen {
 class Codegen : public ast::Visitor {
-  Context &ctx_;
-  llvm::LLVMContext llctx_;
-  llvm::IRBuilder<> builder_;
-  std::unique_ptr<llvm::Module> module_;
-  std::map<std::string, llvm::Value *> values_;
-  std::stack<llvm::Value *> stack_;
+  Context *ctx_;
 
+  std::stack<llvm::Value *> stack_;
   void push(llvm::Value *);
   llvm::Value *pop();
 
+  inline llvm::IRBuilder<> &builder() { return ctx_->builder(); }
+  inline llvm::Module &module() { return ctx_->module(); }
+  inline llvm::LLVMContext &ctx() { return ctx_->llvm(); }
+  inline void clear_lookup() { return ctx_->values().clear(); }
+  inline void add_lookup(const std::string &name, llvm::Value *value) {
+    ctx_->values()[name] = value;
+  }
+  inline llvm::Value *lookup_value(const std::string &name) {
+    return ctx_->values()[name];
+  }
+
 public:
-  Codegen(Context &);
+  Codegen();
   ~Codegen();
 
-  const llvm::Module &module() const;
+  void generate(Context &);
+
   void visit(const ast::Assignment &);
   void visit(const ast::BinaryExpression &);
   void visit(const ast::Call &);

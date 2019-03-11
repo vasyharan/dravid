@@ -18,8 +18,7 @@ class LoggingLexer : public compiler::ILexer {
   bool eof_;
 
 public:
-  LoggingLexer(const std::string &name, std::istream &in)
-      : lexer_{Lexer(name, in)}, eof_(false) {}
+  LoggingLexer(Context &ctx) : lexer_{Lexer(ctx)}, eof_(false) {}
   ~LoggingLexer() { finish(); }
 
   std::unique_ptr<Token> lex() override {
@@ -93,11 +92,11 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
 
     auto testname = fs::relative(entry.path(), fs::path(dir));
     std::fstream in(entry.path().string(), std::ios::in);
-    LoggingLexer lexer(entry.path().string(), in);
+    Context ctx(entry.path().string(), in);
 
-    Context ctx;
-    Parser parser(lexer);
-    parser.parse(ctx);
+    Parser parser;
+    LoggingLexer lexer(ctx);
+    parser.parse(lexer, ctx);
 
     auto &lexbuf = lexer.finish();
     compare(lexbuf.str(), testname, ".ll", write_output,
@@ -113,14 +112,12 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
             with_ext(entry.path(), ".pp.snap"),
             with_ext(entry.path(), ".pp.out"));
 
-    codegen::Codegen codegen(ctx);
-    for (auto &node : ctx.nodes()) {
-      node->accept(codegen);
-    }
+    codegen::Codegen codegen;
+    codegen.generate(ctx);
 
     std::string codestr;
     llvm::raw_string_ostream codebuf(codestr);
-    codegen.module().print(codebuf, nullptr);
+    ctx.module().print(codebuf, nullptr);
     compare(codebuf.str(), testname, ".cg", write_output,
             with_ext(entry.path(), ".cg.snap"),
             with_ext(entry.path(), ".cg.out"));

@@ -6,23 +6,22 @@ namespace compiler {
 
 // Location UNKNOWN_LOC = Location();
 
-Parser::Parser(ILexer &lexer)
-    : lexer_(lexer), curr_token_(Token::make_invalid().release()),
-      next_token_(Token::make_invalid().release()) {
-  advance();
-}
+Parser::Parser()
+    : lexer_(nullptr), curr_token_(nullptr), next_token_(nullptr) {}
 
 Parser::~Parser() {}
 
-void Parser::parse(Context &ctx) {
-  auto token = peek();
-  while (!token->eof()) {
-    if (!token->is_keyword()) {
-      ctx.report_error(Error::unexpected_token(*token));
+void Parser::parse(ILexer &lexer, Context &ctx) {
+  lexer_ = &lexer;
+  next_token_ = lexer_->lex();
+  auto peep = peek();
+  while (!peep->eof()) {
+    if (!peep->is_keyword()) {
+      ctx.report_error(Error::unexpected_token(*peep));
       break;
     }
 
-    switch (token->keyword()) {
+    switch (peep->keyword()) {
     case Token::Keyword::kwDEF:
       if (auto fn = parse_fn(ctx)) {
         ctx.push_node(std::move(fn));
@@ -32,8 +31,10 @@ void Parser::parse(Context &ctx) {
       break;
     }
 
-    token = peek();
+    peep = peek();
   }
+
+  lexer_ = nullptr;
 }
 
 std::unique_ptr<const ast::Function> Parser::parse_fn(Context &ctx) {
@@ -360,11 +361,11 @@ Parser::parse_binary_expr(Context &ctx, int expr_precedence,
 
 std::unique_ptr<Token> Parser::advance() {
   if (curr_token_ == next_token_)
-    next_token_ = lexer_.lex();
+    next_token_ = lexer_->lex();
 
   // auto retval = std::move(curr_token_);
   curr_token_ = std::move(next_token_);
-  next_token_ = lexer_.lex();
+  next_token_ = lexer_->lex();
   return std::move(curr_token_);
 }
 

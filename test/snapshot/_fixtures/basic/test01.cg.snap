@@ -1,5 +1,5 @@
-; ModuleID = 'my cool jit'
-source_filename = "my cool jit"
+; ModuleID = '/home/haran/Workspace/lang/test/snapshot/_fixtures/basic/test01.vd'
+source_filename = "/home/haran/Workspace/lang/test/snapshot/_fixtures/basic/test01.vd"
 
 define i64 @foo(i64 %a, i64 %b, i64 %c) {
 entry:
