@@ -14,6 +14,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/third_party/sanitizers-cmake/cmake" $
 find_package(Sanitizers)
 
 # libraries
+find_package(LLVM REQUIRED CONFIG)
+
 add_library(doctest INTERFACE)
 target_include_directories(doctest INTERFACE "third_party/doctest/doctest")
 

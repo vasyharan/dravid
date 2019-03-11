@@ -1,4 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT
+#include "compiler/codegen.h"
 #include "compiler/lexer.h"
 #include "compiler/parser.h"
 #include "config.h"
@@ -68,10 +69,10 @@ std::stringstream read(std::string path) {
   return buf;
 }
 
-void compare(const std::stringstream &buf, const std::string &testname,
+void compare(const std::string &buf, const std::string &testname,
              const std::string &testtype, const bool write_output,
              const std::string &snappath, const std::string &outpath) {
-  if (read(snappath).str() == buf.str()) {
+  if (read(snappath).str() == buf) {
     std::cout << "PASS: \"" << testname << testtype << "\"\n";
   } else {
     std::cout << "FAIL: \"" << testname << testtype << "\"\n";
@@ -79,7 +80,7 @@ void compare(const std::stringstream &buf, const std::string &testname,
 
   if (write_output) {
     std::fstream out(outpath, std::ios::out);
-    out << buf.rdbuf();
+    out << buf;
   }
 }
 
@@ -99,18 +100,30 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     parser.parse(ctx);
 
     auto &lexbuf = lexer.finish();
-    compare(lexbuf, testname, ".ll", write_output,
+    compare(lexbuf.str(), testname, ".ll", write_output,
             with_ext(entry.path(), ".ll.snap"),
             with_ext(entry.path(), ".ll.out"));
 
     std::stringstream parsebuf;
-    for (auto it = ctx.nodes().begin(); it != ctx.nodes().end(); ++it) {
-      parsebuf << **it << "\n";
+    for (auto &node : ctx.nodes()) {
+      parsebuf << *node << "\n";
     }
     parsebuf.flush();
-    compare(parsebuf, testname, ".pp", write_output,
+    compare(parsebuf.str(), testname, ".pp", write_output,
             with_ext(entry.path(), ".pp.snap"),
             with_ext(entry.path(), ".pp.out"));
+
+    codegen::Codegen codegen(ctx);
+    for (auto &node : ctx.nodes()) {
+      node->accept(codegen);
+    }
+
+    std::string codestr;
+    llvm::raw_string_ostream codebuf(codestr);
+    codegen.module().print(codebuf, nullptr);
+    compare(codebuf.str(), testname, ".cg", write_output,
+            with_ext(entry.path(), ".cg.snap"),
+            with_ext(entry.path(), ".cg.out"));
   }
 }
 

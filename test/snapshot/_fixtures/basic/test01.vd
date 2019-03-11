@@ -1,6 +1,5 @@
 def foo(a, b, c) {
-   val bar = (a + 10) * b - 1 / c
-   bar
+   (a + 10) * b - 1 / c
 }
 
 def main() {

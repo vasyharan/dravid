@@ -84,6 +84,10 @@ public:
   BinaryExpression(const BinaryExpression &) = delete;
   BinaryExpression(BinaryExpression &&) = delete;
 
+  char op() const { return op_; }
+  const Expression &right() const { return *right_; }
+  const Expression &left() const { return *left_; }
+
   virtual void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
 };
@@ -98,6 +102,11 @@ public:
       : name_(name), args_(std::move(args)) {}
   Call(const Call &) = delete;
   Call(Call &&) = delete;
+
+  const std::string &name() const { return name_; }
+  const std::vector<std::unique_ptr<const Expression>> &args() const {
+    return args_;
+  }
 
   virtual void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
@@ -114,6 +123,11 @@ public:
   Function(const Function &) = delete;
   Function(Function &&) = delete;
 
+  const Prototype &proto() const { return *prototype_; }
+  const std::vector<std::unique_ptr<const Expression>> &body() const {
+    return body_;
+  }
+
   virtual void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
 };
@@ -126,6 +140,7 @@ public:
   Identifier(const Identifier &) = delete;
   Identifier(Identifier &&) = delete;
 
+  const std::string &name() const { return name_; }
   void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
 };
@@ -138,6 +153,7 @@ public:
   Integer(const Integer &) = delete;
   Integer(Integer &&) = delete;
 
+  long value() const { return value_; }
   void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
 };
@@ -152,6 +168,11 @@ public:
       : name_(name), params_(std::move(params)){};
   Prototype(const Prototype &) = delete;
   Prototype(Prototype &&) = delete;
+
+  const std::string &name() const { return name_; }
+  const std::vector<std::unique_ptr<const Parameter>> &params() const {
+    return params_;
+  }
 
   virtual void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
@@ -188,6 +209,10 @@ public:
       : constant_(constant), name_(name), value_(std::move(value)) {}
   Value(const Value &) = delete;
   Value(Value &&) = delete;
+
+  bool constant() const { return constant_; }
+  const std::string &name() const { return name_; }
+  const Expression &value() const { return *value_; }
 
   virtual void print(std::ostream &out, int indent = 0) const override;
   MAKE_VISITABLE;
