@@ -92,7 +92,9 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
 
     auto testname = fs::relative(entry.path(), fs::path(dir));
     std::fstream in(entry.path().string(), std::ios::in);
-    Context ctx(entry.path().string(), in);
+
+    GlobalContext global_ctx;
+    Context ctx(global_ctx, entry.path().string(), in);
 
     {
       Parser parser;
@@ -117,12 +119,12 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     }
 
     if (ctx.errors().empty()) {
-      codegen::Codegen codegen;
-      codegen.generate(ctx);
+      codegen::Codegen codegen(ctx);
+      codegen.generate();
 
       std::string codestr;
       llvm::raw_string_ostream codebuf(codestr);
-      ctx.module().print(codebuf, nullptr);
+      codegen.module().print(codebuf, nullptr);
       compare(codebuf.str(), testname, ".cg", write_output,
               with_ext(entry.path(), ".cg.snap"),
               with_ext(entry.path(), ".cg.out"));

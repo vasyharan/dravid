@@ -12,15 +12,27 @@ namespace lang {
 namespace compiler {
 namespace codegen {
 
-Codegen::Codegen() {}
+Codegen::Codegen(Context &ctx)
+    : _ctx(ctx), _module{llvm::Module(ctx.name(), ctx.llvm())},
+      _builder(ctx.llvm()), _fpm(&_module) {
+  // Do simple "peephole" optimizations and bit-twiddling optzns.
+  _fpm.add(llvm::createInstructionCombiningPass());
+  // Reassociate expressions.
+  _fpm.add(llvm::createReassociatePass());
+  // Eliminate Common SubExpressions.
+  _fpm.add(llvm::createGVNPass());
+  // Simplify the control flow graph (deleting unreachable blocks, etc).
+  _fpm.add(llvm::createCFGSimplificationPass());
+}
+
 Codegen::~Codegen() {}
 
-void Codegen::generate(Context &c) {
-  _ctx = &c;
-  for (auto &node : _ctx->nodes()) {
+const llvm::Module &Codegen::module() const { return _module; }
+
+void Codegen::generate() {
+  for (auto &node : _ctx.nodes()) {
     node->accept(*this);
   }
-  _ctx = nullptr;
 }
 
 void Codegen::visit(const ast::Assignment &asgn) {}
@@ -29,128 +41,137 @@ void Codegen::visit(const ast::BinaryExpression &expr) {
   expr.left().accept(*this);
   expr.right().accept(*this);
 
-  auto right = pop();
-  auto left = pop();
+  auto right = _stack.top();
+  _stack.pop();
+  auto left = _stack.top();
+  _stack.pop();
 
   Value *val = nullptr;
   switch (expr.op()) {
   case '+':
-    val = builder().CreateAdd(left, right, "addtmp");
+    val = _builder.CreateAdd(left, right, "addtmp");
     break;
   case '-':
-    val = builder().CreateSub(left, right, "subtmp");
+    val = _builder.CreateSub(left, right, "subtmp");
     break;
   case '*':
-    val = builder().CreateMul(left, right, "multmp");
+    val = _builder.CreateMul(left, right, "multmp");
     break;
   case '/':
-    val = builder().CreateExactSDiv(left, right, "divtmp");
+    val = _builder.CreateExactSDiv(left, right, "divtmp");
     break;
   default:
     // log error
     break;
   }
 
-  push(val);
+  _stack.push(val);
 }
 
 void Codegen::visit(const ast::Call &call) {
-  Function *callee = module().getFunction(call.name());
+  Function *callee = _module.getFunction(call.name());
   if (!callee) {
     // log error;
-    push(nullptr);
+    _stack.push(nullptr);
     return;
   }
 
   if (callee->arg_size() != call.args().size()) {
     // log error;
-    push(nullptr);
+    _stack.push(nullptr);
     return;
   }
 
   std::vector<Value *> args;
   for (auto &expr : call.args()) {
     expr->accept(*this);
-    auto arg = pop();
+    auto arg = _stack.top();
+    _stack.pop();
     if (!arg) {
       // log error;
-      push(nullptr);
+      _stack.push(nullptr);
       return;
     }
     args.emplace_back(arg);
   }
 
-  auto val = builder().CreateCall(callee, args, "calltmp");
-  push(val);
+  auto val = _builder.CreateCall(callee, args, "calltmp");
+  _stack.push(val);
 }
 
 void Codegen::visit(const ast::Function &fn) {
-  Function *llfn = module().getFunction(fn.proto().name());
-  if (!llfn) {
+  Function *val = _module.getFunction(fn.proto().name());
+  if (!val) {
     fn.proto().accept(*this);
-    auto created = pop(); // function created by proto.
-    llfn = module().getFunction(fn.proto().name());
-    assert(created == llfn);
+    auto created = _stack.top(); // function created by proto.
+    _stack.pop();
+    val = _module.getFunction(fn.proto().name());
+    assert(created == val);
   }
-  if (!llfn) {
+  if (!val) {
     // report error.
-    push(nullptr);
+    _stack.push(nullptr);
     return;
   }
 
-  if (!llfn->empty()) {
+  if (!val->empty()) {
     // return error (fn cannot be redefined).
-    push(nullptr);
+    _stack.push(nullptr);
     return;
   }
 
-  BasicBlock *block = BasicBlock::Create(ctx(), "entry", llfn);
-  builder().SetInsertPoint(block);
+  BasicBlock *block = BasicBlock::Create(_ctx.llvm(), "entry", val);
+  _builder.SetInsertPoint(block);
 
   // values_.clear();
-  auto &scope = _ctx->push_scope();
-  for (auto &arg : llfn->args()) {
+  auto &scope = _ctx.push_scope();
+  for (auto &arg : val->args()) {
     scope.symbol_add(arg.getName(), &arg);
   }
 
   assert(fn.body().size() == 1);
   fn.body()[0]->accept(*this);
-  Value *retval = pop();
+  Value *retval = _stack.top();
+  _stack.pop();
   if (!retval) {
-    llfn->eraseFromParent();
-    push(nullptr);
+    val->eraseFromParent();
+    _stack.push(nullptr);
     return;
   }
 
-  builder().CreateRet(retval);
-  push(llfn);
+  _builder.CreateRet(retval);
+  verifyFunction(*val);
+  _fpm.run(*val);
+
+  _stack.push(val);
 }
 
 void Codegen::visit(const ast::Identifier &id) {
-  auto &scope = _ctx->top_scope();
+  auto &scope = _ctx.top_scope();
   auto val = scope.symbol_lookup(id.name());
   if (!val) {
     // report error
-    push(nullptr);
+    _stack.push(nullptr);
     return;
   }
 
-  push(val);
+  _stack.push(val);
 }
 
 void Codegen::visit(const ast::Integer &integer) {
-  auto val = ConstantInt::get(ctx(), APInt(64, integer.value(), true));
-  push(val);
+  auto val = ConstantInt::get(_ctx.llvm(), APInt(64, integer.value(), true));
+  _stack.push(val);
 }
 
 void Codegen::visit(const ast::Parameter &param) {}
 
 void Codegen::visit(const ast::Prototype &proto) {
-  std::vector<Type *> params(proto.params().size(), Type::getInt64Ty(ctx()));
-  FunctionType *fntype =
-      FunctionType::get(Type::getInt64Ty(ctx()), params, false /* IsVarArgs */);
+  std::vector<Type *> params(proto.params().size(),
+                             Type::getInt64Ty(_ctx.llvm()));
+  FunctionType *fntype = FunctionType::get(Type::getInt64Ty(_ctx.llvm()),
+                                           params, false /* IsVarArgs */);
   Function *fn = Function::Create(fntype, Function::ExternalLinkage,
-                                  proto.name(), &module());
+                                  proto.name(), &_module);
 
   auto arg_it = fn->args().begin();
   auto param_it = proto.params().begin();
@@ -159,23 +180,11 @@ void Codegen::visit(const ast::Prototype &proto) {
     (*arg_it).setName((*param_it)->name());
   }
 
-  push(fn);
+  _stack.push(fn);
 }
 
 void Codegen::visit(const ast::TupleAssignment &param) {}
 void Codegen::visit(const ast::Value &param) {}
-
-void Codegen::push(Value *v) { stack_.emplace(v); }
-
-Value *Codegen::pop() {
-  auto v = stack_.top();
-  stack_.pop();
-  return v;
-}
-
-inline llvm::IRBuilder<> &Codegen::builder() { return _ctx->builder(); }
-inline llvm::Module &Codegen::module() { return _ctx->module(); }
-inline llvm::LLVMContext &Codegen::ctx() { return _ctx->llvm(); }
 
 } // namespace codegen
 } // namespace compiler

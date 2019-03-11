@@ -4,10 +4,17 @@
 #include "expressions.h"
 #include "stack.h"
 #include "token.h"
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+// #include "llvm/Transforms/Scalar/Reassociate.h"
 #include <memory>
+#include <stack>
 #include <vector>
 
 namespace lang {
@@ -18,95 +25,72 @@ private:
   enum Kind {
     SYNTAX = 1,
   };
-  static const std::string kind_str(const Kind k) {
-    switch (k) {
-    case SYNTAX:
-      return "SYN";
-    default:
-      assert(false);
-      return "INVALID";
-    }
-  }
+  static const std::string to_string(const Kind k);
 
   const Kind _kind;
   const std::string _msg;
   const std::string _explanation;
 
-  Error(Kind kind, const std::string &msg, const std::string &explanation)
-      : _kind(kind), _msg(msg), _explanation(explanation) {}
+  Error(Kind kind, const std::string &msg, const std::string &explanation);
 
 public:
-  static std::unique_ptr<Error> unexpected_token(const Token &token) {
-    return unexpected_token(token, "");
-  }
-
+  static std::unique_ptr<Error> unexpected_token(const Token &token);
   static std::unique_ptr<Error>
-  unexpected_token(const Token &token, const std::string &explanation) {
-    auto error =
-        new Error(Kind::SYNTAX, "Unexpected " + token.string(), explanation);
-    return std::unique_ptr<Error>(error);
-  }
+  unexpected_token(const Token &token, const std::string &explanation);
 
-  friend std::ostream &operator<<(std::ostream &out, const Error &err) {
-    out << kind_str(err._kind) << ": " << err._msg << "\n" << err._explanation;
-    return out;
-  }
+  friend std::ostream &operator<<(std::ostream &out, const Error &err);
 };
 
 class Scope {
   std::map<std::string, llvm::Value *> values_;
 
 public:
-  void symbol_add(const std::string &name, llvm::Value *value) {
-    values_[name] = value;
-  }
-  llvm::Value *symbol_lookup(const std::string &name) { return values_[name]; }
+  void symbol_add(const std::string &name, llvm::Value *value);
+  llvm::Value *symbol_lookup(const std::string &name);
 };
 
-class Context {
-  const std::string name_;
-  std::istream &in_;
-
-  std::vector<std::unique_ptr<const Error>> errors_;
-  std::vector<std::unique_ptr<const ast::Expression>> nodes_;
-
-  llvm::LLVMContext llvm_;
-  llvm::Module module_;
-  llvm::IRBuilder<> builder_;
-  stack<Scope> _stack;
+class GlobalContext {
+  llvm::LLVMContext _llvm;
 
 public:
-  Context(const std::string &name, std::istream &in)
-      : name_(name), in_(in), module_{llvm::Module(name, llvm_)},
-        builder_(llvm_){};
+  llvm::LLVMContext &llvm();
+}; // namespace compiler
+
+class Context {
+  const std::string _name;
+  std::istream &_in;
+
+  std::vector<std::unique_ptr<const Error>> _errors;
+  std::vector<std::unique_ptr<const ast::Expression>> _nodes;
+
+  GlobalContext &_global;
+  std::stack<Scope> _stack;
+
+public:
+  Context(GlobalContext &global, const std::string &name, std::istream &in);
   Context(const Context &) = delete;
 
-  void report_error(std::unique_ptr<const Error> error) {
-    errors_.push_back(std::move(error));
-  };
-  void push_node(std::unique_ptr<const ast::Expression> node) {
-    nodes_.push_back(std::move(node));
-  };
+  void report_error(std::unique_ptr<const Error> error);
+  void push_node(std::unique_ptr<const ast::Expression> node);
 
   // symbol table
-  Scope &push_scope() {
-    Scope s;
-    return _stack.push(s);
-  }
-  Scope &top_scope() { return _stack.top(); }
+  Scope &push_scope();
+  Scope &top_scope();
 
   // getters;
-  const std::string &name() const { return name_; }
-  std::istream &in() { return in_; }
-  std::vector<std::unique_ptr<const ast::Expression>> &nodes() {
-    return nodes_;
-  }
-  std::vector<std::unique_ptr<const Error>> &errors() { return errors_; }
+  const std::string &name() const;
+  std::istream &in();
+  GlobalContext &global();
+  llvm::LLVMContext &llvm();
+  std::vector<std::unique_ptr<const ast::Expression>> &nodes();
+  std::vector<std::unique_ptr<const Error>> &errors();
 
-  llvm::LLVMContext &llvm() { return llvm_; }
-  llvm::IRBuilder<> &builder() { return builder_; }
-  llvm::Module &module() { return module_; }
-};
+  // llvm::LLVMContext &llvm() { return _llvm; }
+  // llvm::IRBuilder<> &builder() { return _builder; }
+  // llvm::Module &module() { return _module; }
+  // llvm::legacy::FunctionPassManager &fpm() { return _fpm; }
+  // llvm::FunctionAnalysisManager &fam() { return _fam; }
+}; // namespace compiler
 
 } // namespace compiler
 } // namespace lang

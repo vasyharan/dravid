@@ -5,7 +5,9 @@ define i64 @foo(i64 %a, i64 %b, i64 %c) {
 entry:
   %addtmp = add i64 %a, 10
   %multmp = mul i64 %addtmp, %b
-  %divtmp = sdiv exact i64 1, %c
+  %0 = add i64 %c, 1
+  %1 = icmp ult i64 %0, 3
+  %divtmp = select i1 %1, i64 %c, i64 0
   %subtmp = sub i64 %multmp, %divtmp
   ret i64 %subtmp
 }
@@ -14,4 +16,17 @@ define i64 @main() {
 entry:
   %calltmp = call i64 @foo(i64 1, i64 2, i64 3)
   ret i64 %calltmp
+}
+
+define i64 @test1(i64 %x) {
+entry:
+  %addtmp = add i64 %x, 3
+  ret i64 %addtmp
+}
+
+define i64 @test2(i64 %x) {
+entry:
+  %addtmp = add i64 %x, 3
+  %multmp = mul i64 %addtmp, %addtmp
+  ret i64 %multmp
 }

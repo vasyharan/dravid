@@ -16,3 +16,23 @@
            (int 1)
            (int 2)
            (int 3))))
+(fn (proto test1
+           ((param var x)))
+    (    (+
+     (+
+      (int 1)
+      (int 2))
+     (id x))))
+(fn (proto test2
+           ((param var x)))
+    (    (*
+     (+
+      (+
+       (int 1)
+       (int 2))
+      (id x))
+     (+
+      (id x)
+      (+
+       (int 1)
+       (int 2))))))

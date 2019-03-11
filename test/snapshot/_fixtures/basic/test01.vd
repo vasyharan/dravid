@@ -6,4 +6,5 @@ def main() {
   foo(1, 2, 3)
 }
 
-def test(x): 1 + 2 + x
+def test1(x): 1 + 2 + x
+def test2(x): (1+2+x)*(x+(1+2))

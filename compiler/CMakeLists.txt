@@ -1,4 +1,4 @@
-add_library(compiler STATIC lexer.cc expressions.cc parser.cc codegen.cc)
+add_library(compiler STATIC context.cc lexer.cc expressions.cc parser.cc codegen.cc)
 target_compile_options(compiler PRIVATE -Wall -fno-exceptions)
 target_compile_features(compiler PRIVATE cxx_std_17)
 target_include_directories(compiler PUBLIC ${PROJECT_SOURCE_DIR})

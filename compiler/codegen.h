@@ -12,32 +12,30 @@
 // #include <llvm/IR/Constants.h>
 // #include <llvm/IR/DerivedTypes.h>
 // #include <llvm/IR/Function.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
 // #include <llvm/IR/Type.h>
 // #include <llvm/IR/Verifier.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
 
 namespace lang {
 namespace compiler {
 namespace codegen {
 class Codegen : public ast::Visitor {
-  Context *_ctx;
-
-  std::stack<llvm::Value *> stack_;
-  void push(llvm::Value *);
-  llvm::Value *pop();
-
-  inline llvm::IRBuilder<> &builder();
-  inline llvm::Module &module();
-  inline llvm::LLVMContext &ctx();
+  Context &_ctx;
+  llvm::Module _module;
+  llvm::IRBuilder<> _builder;
+  llvm::legacy::FunctionPassManager _fpm;
+  std::stack<llvm::Value *> _stack;
 
 public:
-  Codegen();
+  Codegen(Context &ctx);
   ~Codegen();
 
-  void generate(Context &);
+  void generate();
+  const llvm::Module &module() const;
 
   void visit(const ast::Assignment &);
   void visit(const ast::BinaryExpression &);
