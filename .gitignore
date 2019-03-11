@@ -1,6 +1,9 @@
 # editors
 /.vscode/
 /.cquery_cached_index/
+/.ccls-cache/
+/.ccls-root
+/.dir-locals.el
 
 # cmake
 /build/

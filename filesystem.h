@@ -6,16 +6,16 @@
 
 #ifdef USE_BOOST_FILESYSTEM
 #include <boost/filesystem.hpp>
-#elif USE_STD17_FILESYSTEM
-#include <experimental/filesystem>
+#else
+#include <filesystem>
 #endif
 
 namespace lang {
 
 #ifdef USE_BOOST_FILESYSTEM
 namespace fs = boost::filesystem;
-#elif USE_STD17_FILESYSTEM
-namespace fs = std::experimental::filesystem;
+#else
+namespace fs = std::filesystem;
 #endif
 
 } // namespace lang

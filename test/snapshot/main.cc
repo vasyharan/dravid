@@ -42,7 +42,8 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     if (snapbuf.str() == outbuf.str()) {
       std::cout << "PASS: " << relpath.string() << "\n";
     } else {
-      std::cout << "FAIL: " << lang::fs::relative(inpath.string(), dirpath) << "\n";
+      std::cout << "FAIL: " << lang::fs::relative(inpath.string(), dirpath)
+                << "\n";
     }
 
     if (write_output) {
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]) {
       ("t,test", "Run this test", cxxopts::value<std::vector<std::string>>());
     // clang-format on
 
-    options.parse_positional({"test"});
+    options.parse_positional("test");
 
     auto result = options.parse(argc, argv);
 
@@ -79,7 +80,7 @@ int main(int argc, char *argv[]) {
     if (result.count("test")) {
       auto &tests = result["test"].as<std::vector<std::string>>();
       for (const auto &test : tests) {
-	run_snapshots(test);
+        run_snapshots(test, true);
       }
     } else {
       std::cout << options.help() << std::endl;

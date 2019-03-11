@@ -1,3 +1,7 @@
 (keyword def)
 (id foo)
+(op ()
+(op ))
+(op {)
+(op })
 (eof)

@@ -15,9 +15,19 @@ public:
     kwVAL,
   };
 
+  enum Operator {
+    opINVALID = -1,
+    opLPAREN = 1,
+    opRPAREN,
+    opLCURLY,
+    opRCURLY,
+    opLSQUARE,
+    opRSQUARE,
+  };
+
   enum Type {
-    tINVALID = -2,
     tEOF = -1,
+    tINVALID = 0,
     tKEYWORD = 1,
     tIDENTIFIER,
     tSTRING,
@@ -38,6 +48,11 @@ public:
 
   static Token make_invalid() { return Token(Type::tINVALID); }
   static Token make_eof() { return Token(Type::tEOF); }
+  static Token make_op(const Operator op) {
+    Token token(Type::tOPERATOR);
+    token.u_.op = op;
+    return token;
+  }
   static Token make_keyword(const Keyword keyword) {
     Token token(Type::tKEYWORD);
     token.u_.keyword = keyword;
@@ -61,6 +76,7 @@ private:
   Type type_;
   union {
     Keyword keyword;
+    Operator op;
     std::string *identifier_value;
     std::string *string_value;
   } u_;
