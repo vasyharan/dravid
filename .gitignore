@@ -1,0 +1,15 @@
+# editors
+/.vscode/
+/.cquery_cached_index/
+
+# cmake
+/build/
+
+# compilation db
+/compile_commands.json
+
+# test output
+/_fixtures/**/*.out
+
+# generated files
+/config.h

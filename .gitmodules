@@ -1,0 +1,9 @@
+[submodule "vendor/sanitizers-cmake"]
+	path = third_party/sanitizers-cmake
+	url = git://github.com/arsenm/sanitizers-cmake.git
+[submodule "vendor/doctest"]
+	path = third_party/doctest
+	url = git://github.com/onqtam/doctest.git
+[submodule "vendor/cxxopts"]
+	path = third_party/cxxopts
+	url = git://github.com/jarro2783/cxxopts

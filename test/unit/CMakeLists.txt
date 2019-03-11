@@ -1,0 +1,6 @@
+add_executable(test-unit main.cc)
+target_compile_options(test-unit PRIVATE -Wall)
+target_compile_features(test-unit PRIVATE cxx_std_17)
+target_include_directories(test-unit PUBLIC ${lang_SOURCE_DIR})
+target_link_libraries(test-unit compiler doctest ${EXTRA_LIBS})
+add_sanitizers(test-unit)
