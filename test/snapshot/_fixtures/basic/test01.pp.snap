@@ -2,7 +2,7 @@
            ((param var a)
             (param var b)
             (param var c)))
-    (    (-
+    ((-
      (*
       (+
        (id a)
@@ -18,14 +18,14 @@
            (int 3))))
 (fn (proto test1
            ((param var x)))
-    (    (+
+    ((+
      (+
       (int 1)
       (int 2))
      (id x))))
 (fn (proto test2
            ((param var x)))
-    (    (*
+    ((*
      (+
       (+
        (int 1)

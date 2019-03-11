@@ -5,7 +5,7 @@ namespace compiler {
 namespace ast {
 
 void Assignment::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ') << "(asgn ";
+  out << "(asgn ";
   if (left_ != nullptr) {
     out << "\n";
     left_->print(out, indent + 6);
@@ -22,18 +22,18 @@ void Assignment::print(std::ostream &out, int indent) const {
 }
 
 void BinaryExpression::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ') << "(" << op_;
+  out << "(" << op_;
+  out << "\n" << std::string(indent + 1, ' ');
   if (left_ != NULL) {
-    out << "\n";
     left_->print(out, indent + 1);
   } else {
-    out << " nil";
+    out << "nil";
   }
+  out << "\n" << std::string(indent + 1, ' ');
   if (right_ != NULL) {
-    out << "\n";
     right_->print(out, indent + 1);
   } else {
-    out << " nil";
+    out << "nil";
   }
   out << ")";
 }
@@ -47,11 +47,11 @@ void Call::print(std::ostream &out, int indent) const {
   }
 
   auto it = args_.begin();
-  out << "\n";
+  out << "\n" << std::string(indent + 7, ' ');
   (*it)->print(out, indent + 7);
 
   for (++it; it != args_.end(); ++it) {
-    out << "\n";
+    out << "\n" << std::string(indent + 7, ' ');
     (*it)->print(out, indent + 7);
   }
   out << ")";
@@ -70,24 +70,24 @@ void Function::print(std::ostream &out, int indent) const {
   out << "\n" << std::string(indent + 4, ' ') << '(';
   (*it)->print(out, indent + 4);
 
-  for (++it; it != body_.end(); ++it) {
-    out << "\n";
-    (*it)->print(out, indent + 5);
-  }
+  // for (++it; it != body_.end(); ++it) {
+  //   out << "\n";
+  //   out << std::string(indent + 5, ' ');
+  //   (*it)->print(out, indent + 5);
+  // }
   out << "))";
 }
 
 void Identifier::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ') << "(id " << name_ << ")";
+  out << "(id " << name_ << ")";
 }
 
 void Integer::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ');
   out << "(int " << value_ << ")";
 }
 
 void TupleAssignment::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ') << "(asgn ";
+  out << "(asgn ";
   auto lit = left_.begin();
   (*lit)->print(out);
   auto rit = right_.begin();
@@ -100,17 +100,7 @@ void TupleAssignment::print(std::ostream &out, int indent) const {
 }
 
 void Parameter::print(std::ostream &out, int indent) const {
-  out << std::string(indent, ' ');
-  out << "(param " << (constant_ ? "val" : "var") << " " << name_;
-  // if (hasDefault) {
-  //   if (defValue == nullptr) {
-  //     out << " nil";
-  //   } else {
-  //     out << "\n";
-  //     defValue->print(out, indent + 1);
-  //   }
-  // }
-  out << ")";
+  out << "(param " << (constant_ ? "val" : "var") << " " << name_ << ")";
 }
 
 void Prototype::print(std::ostream &out, int indent) const {
@@ -127,6 +117,7 @@ void Prototype::print(std::ostream &out, int indent) const {
 
   for (++it; it != params_.end(); ++it) {
     out << "\n";
+    out << std::string(indent + 8, ' ');
     (*it)->print(out, indent + 8);
   }
   out << "))";
