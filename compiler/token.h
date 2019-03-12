@@ -24,7 +24,7 @@ public:
 
   enum Keyword {
     kwINVALID = -1,
-    kwDEF = 1,
+    kwFN = 1,
     kwVAR,
     kwVAL,
   };

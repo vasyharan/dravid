@@ -7,8 +7,8 @@ namespace compiler {
 
 const std::string to_string(const Token::Keyword keyword) {
   switch (keyword) {
-  case Token::Keyword::kwDEF:
-    return "def";
+  case Token::Keyword::kwFN:
+    return "fn";
   case Token::Keyword::kwVAR:
     return "var";
   case Token::Keyword::kwVAL:
@@ -248,8 +248,8 @@ Token::Operator Lexer::parse_op() {
 }
 
 Token::Keyword Lexer::parse_keyword(const std::string &id) {
-  if (id == "def") {
-    return Token::Keyword::kwDEF;
+  if (id == "fn") {
+    return Token::Keyword::kwFN;
   } else if (id == "var") {
     return Token::Keyword::kwVAR;
   } else if (id == "val") {

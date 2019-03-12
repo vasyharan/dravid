@@ -70,11 +70,10 @@ void Function::print(std::ostream &out, int indent) const {
   out << "\n" << std::string(indent + 4, ' ') << '(';
   (*it)->print(out, indent + 4);
 
-  // for (++it; it != body_.end(); ++it) {
-  //   out << "\n";
-  //   out << std::string(indent + 5, ' ');
-  //   (*it)->print(out, indent + 5);
-  // }
+  for (++it; it != body_.end(); ++it) {
+    out << "\n" << std::string(indent + 5, ' ');
+    (*it)->print(out, indent + 5);
+  }
   out << "))";
 }
 

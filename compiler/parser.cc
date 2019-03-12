@@ -22,7 +22,7 @@ void Parser::parse(ILexer &lexer, Context &ctx) {
     }
 
     switch (peep->keyword()) {
-    case Token::Keyword::kwDEF:
+    case Token::Keyword::kwFN:
       if (auto fn = parse_fn(ctx)) {
         ctx.push_node(std::move(fn));
       }
@@ -39,7 +39,7 @@ void Parser::parse(ILexer &lexer, Context &ctx) {
 
 std::unique_ptr<const ast::Function> Parser::parse_fn(Context &ctx) {
   auto token = advance();
-  if (!token->is_keyword(Token::Keyword::kwDEF)) {
+  if (!token->is_keyword(Token::Keyword::kwFN)) {
     ctx.report_error(Error::unexpected_token(*token, "Expected `fn'"));
     return nullptr;
   }
@@ -101,19 +101,27 @@ Parser::parse_fn_body(Context &ctx) {
   std::vector<std::unique_ptr<const ast::Expression>> body;
 
   auto token = advance();
-  if (token->is_operator(Token::Operator::opCOLON)) {
-    auto expr = parse_stmt(ctx);
-    body.push_back(std::move(expr));
+  if (!token->is_operator(Token::Operator::opEQUAL)) {
+    ctx.report_error(Error::unexpected_token(*token, "Expected fn '='"));
     return body;
   }
 
-  if (!token->is_operator(Token::Operator::opLCURLY)) {
-    ctx.report_error(Error::unexpected_token(*token, "Expected fn '{'"));
+  if (!peek()->is_operator(Token::Operator::opLCURLY)) {
+    auto expr = parse_stmt(ctx);
+    if (expr != nullptr) {
+      body.push_back(std::move(expr));
+    }
     return body;
+  } else {
+    advance(); // eat '{'
   }
 
   for (auto expr = parse_stmt(ctx); expr != nullptr; expr = parse_stmt(ctx)) {
-    body.push_back(std::move(expr));
+    if (expr != nullptr) {
+      body.push_back(std::move(expr));
+    } else {
+      break;
+    }
 
     auto peep = peek();
     if (peep->is_operator(Token::Operator::opRCURLY)) {

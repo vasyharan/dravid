@@ -1,10 +1,10 @@
-def foo(a, b, c) {
+fn foo(a, b, c) = {
    (a + 10) * b - 1 / c
 }
 
-def main() {
+fn main() = {
   foo(1, 2, 3)
 }
 
-def test1(x): 1 + 2 + x
-def test2(x): (1+2+x)*(x+(1+2))
+fn test1(x) = 1 + 2 + x
+fn test2(x) = (1+2+x)*(x+(1+2))
