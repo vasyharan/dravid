@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
     // clang-format off
     options.add_options()
       ("h,help", "Show this message")
+      ("w,write-output", "Write output files")
       ("t,test", "Run this test", cxxopts::value<std::vector<std::string>>());
     // clang-format on
 
@@ -168,8 +169,10 @@ int main(int argc, char *argv[]) {
 
     if (result.count("test")) {
       auto &tests = result["test"].as<std::vector<std::string>>();
+      auto write_output =
+          result.count("write-output") && result["write-output"].as<bool>();
       for (const auto &test : tests) {
-        lang::compiler::run_snapshots(test, true);
+        lang::compiler::run_snapshots(test, write_output);
       }
     } else {
       std::cout << options.help() << std::endl;
