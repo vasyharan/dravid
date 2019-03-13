@@ -4,6 +4,23 @@ namespace lang {
 namespace compiler {
 namespace ast {
 
+void print_body(std::ostream &out, int indent,
+                const std::vector<std::unique_ptr<const Expression>> &body) {
+  if (body.empty()) {
+    out << "\n" << std::string(indent + 4, ' ') << "())";
+    return;
+  }
+
+  auto it = body.begin();
+  out << "\n" << std::string(indent + 4, ' ') << '(';
+  (*it)->print(out, indent + 4);
+
+  for (++it; it != body.end(); ++it) {
+    out << "\n" << std::string(indent + 5, ' ');
+    (*it)->print(out, indent + 5);
+  }
+}
+
 void Assignment::print(std::ostream &out, int indent) const {
   out << "(asgn ";
   if (left_ != nullptr) {
@@ -60,21 +77,18 @@ void Call::print(std::ostream &out, int indent) const {
 void Function::print(std::ostream &out, int indent) const {
   out << "(fn ";
   prototype_->print(out, indent + 4);
-
-  if (body_.empty()) {
-    out << "\n" << std::string(indent + 4, ' ') << "())";
-    return;
-  }
-
-  auto it = body_.begin();
-  out << "\n" << std::string(indent + 4, ' ') << '(';
-  (*it)->print(out, indent + 4);
-
-  for (++it; it != body_.end(); ++it) {
-    out << "\n" << std::string(indent + 5, ' ');
-    (*it)->print(out, indent + 5);
-  }
+  print_body(out, indent, body_);
   out << "))";
+}
+
+void If::print(std::ostream &out, int indent) const {
+  out << "(if ";
+  cond_->print(out, indent + 4);
+
+  print_body(out, indent, then_);
+  print_body(out, indent, else_);
+
+  out << ")";
 }
 
 void Identifier::print(std::ostream &out, int indent) const {

@@ -1,32 +1,47 @@
 ; ModuleID = '/home/haran/Workspace/lang/test/snapshot/_fixtures/basic/test01.vd'
 source_filename = "/home/haran/Workspace/lang/test/snapshot/_fixtures/basic/test01.vd"
 
-define i64 @foo(i64 %a, i64 %b, i64 %c) {
+define i64 @foo1(i64 %a, i64 %b, i64 %c) {
 entry:
-  %addtmp = add i64 %a, 10
-  %multmp = mul i64 %addtmp, %b
-  %0 = add i64 %c, 1
-  %1 = icmp ult i64 %0, 3
-  %divtmp = select i1 %1, i64 %c, i64 0
-  %subtmp = sub i64 %multmp, %divtmp
-  ret i64 %subtmp
-}
+  %multmp = mul i64 10, %c
+  %ifcond = icmp eq i64 %multmp, 1
+  br i1 %ifcond, label %then, label %else
 
-define i64 @main() {
-entry:
-  %calltmp = call i64 @foo(i64 1, i64 2, i64 3)
-  ret i64 %calltmp
+then:                                             ; preds = %entry
+  %addtmp = add i64 %a, 10
+  br label %ifcont5
+
+else:                                             ; preds = %entry
+  %ifcond1 = icmp eq i64 %a, 1
+  br i1 %ifcond1, label %then2, label %else3
+
+then2:                                            ; preds = %else
+  %subtmp = sub i64 %a, 10
+  br label %ifcont
+
+else3:                                            ; preds = %else
+  %multmp4 = mul i64 %a, 10
+  br label %ifcont
+
+ifcont:                                           ; preds = %else3, %then2
+  %iftmp = phi i64 [ %subtmp, %then2 ], [ %multmp4, %else3 ]
+  br label %ifcont5
+
+ifcont5:                                          ; preds = %ifcont, %then
+  %iftmp6 = phi i64 [ %addtmp, %then ], [ %iftmp, %ifcont ]
+  ret i64 %iftmp6
 }
 
 define i64 @test1(i64 %x) {
 entry:
-  %addtmp = add i64 %x, 3
+  %addtmp = add i64 3, %x
   ret i64 %addtmp
 }
 
 define i64 @test2(i64 %x) {
 entry:
-  %addtmp = add i64 %x, 3
-  %multmp = mul i64 %addtmp, %addtmp
+  %addtmp = add i64 3, %x
+  %addtmp1 = add i64 %x, 3
+  %multmp = mul i64 %addtmp, %addtmp1
   ret i64 %multmp
 }

@@ -16,13 +16,13 @@ Codegen::Codegen(Context &ctx)
     : _ctx(ctx), _module{llvm::Module(ctx.name(), ctx.llvm())},
       _builder(ctx.llvm()), _fpm(&_module) {
   // Do simple "peephole" optimizations and bit-twiddling optzns.
-  _fpm.add(llvm::createInstructionCombiningPass());
+  // _fpm.add(llvm::createInstructionCombiningPass());
   // Reassociate expressions.
-  _fpm.add(llvm::createReassociatePass());
+  // _fpm.add(llvm::createReassociatePass());
   // Eliminate Common SubExpressions.
-  _fpm.add(llvm::createGVNPass());
+  // _fpm.add(llvm::createGVNPass());
   // Simplify the control flow graph (deleting unreachable blocks, etc).
-  _fpm.add(llvm::createCFGSimplificationPass());
+  // _fpm.add(llvm::createCFGSimplificationPass());
 }
 
 Codegen::~Codegen() {}
@@ -148,6 +148,61 @@ void Codegen::visit(const ast::Function &fn) {
   _fpm.run(*val);
 
   _stack.push(val);
+}
+
+void Codegen::visit(const ast::If &if_) {
+  if_.cond().accept(*this);
+  auto cond = _stack.top();
+  _stack.pop();
+
+  if (!cond) {
+    _stack.push(nullptr);
+    return;
+  }
+
+  cond = _builder.CreateICmpEQ(
+      cond, ConstantInt::get(_ctx.llvm(), APInt(64, 1, true)), "ifcond");
+
+  Function *fn = _builder.GetInsertBlock()->getParent();
+  BasicBlock *thn = BasicBlock::Create(_ctx.llvm(), "then", fn);
+  BasicBlock *els = BasicBlock::Create(_ctx.llvm(), "else");
+  BasicBlock *mrg = BasicBlock::Create(_ctx.llvm(), "ifcont");
+  _builder.CreateCondBr(cond, thn, els);
+
+  // THEN
+  _builder.SetInsertPoint(thn);
+  for (auto &expr : if_.thn()) {
+    expr->accept(*this);
+  }
+  Value *thnV = _stack.top();
+  for (auto i = 0; i < if_.thn().size(); ++i) {
+    _stack.pop();
+  }
+
+  _builder.CreateBr(mrg);
+  thn = _builder.GetInsertBlock(); // codegen can change the block, so restore
+
+  // ELSE
+  fn->getBasicBlockList().push_back(els);
+  _builder.SetInsertPoint(els);
+  for (auto &expr : if_.els()) {
+    expr->accept(*this);
+  }
+  Value *elsV = _stack.top();
+  for (auto i = 0; i < if_.els().size(); ++i) {
+    _stack.pop();
+  }
+  _builder.CreateBr(mrg);
+  els = _builder.GetInsertBlock(); // codegen can change the block, so restore
+
+  // MERGE
+  fn->getBasicBlockList().push_back(mrg);
+  _builder.SetInsertPoint(mrg);
+  PHINode *phi = _builder.CreatePHI(Type::getInt64Ty(_ctx.llvm()), 2, "iftmp");
+
+  phi->addIncoming(thnV, thn);
+  phi->addIncoming(elsV, els);
+  _stack.push(phi);
 }
 
 void Codegen::visit(const ast::Identifier &id) {

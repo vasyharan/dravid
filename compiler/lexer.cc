@@ -9,6 +9,12 @@ const std::string to_string(const Token::Keyword keyword) {
   switch (keyword) {
   case Token::Keyword::kwFN:
     return "fn";
+  case Token::Keyword::kwIF:
+    return "if";
+  case Token::Keyword::kwELSE:
+    return "else";
+  case Token::Keyword::kwELIF:
+    return "elif";
   case Token::Keyword::kwVAR:
     return "var";
   case Token::Keyword::kwVAL:
@@ -254,6 +260,12 @@ Token::Keyword Lexer::parse_keyword(const std::string &id) {
     return Token::Keyword::kwVAR;
   } else if (id == "val") {
     return Token::Keyword::kwVAL;
+  } else if (id == "if") {
+    return Token::Keyword::kwIF;
+  } else if (id == "else") {
+    return Token::Keyword::kwELSE;
+  } else if (id == "elif") {
+    return Token::Keyword::kwELIF;
   }
 
   return Token::Keyword::kwINVALID;

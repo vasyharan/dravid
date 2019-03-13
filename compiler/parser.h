@@ -27,16 +27,20 @@ class Parser {
   std::unique_ptr<const ast::Expression> parse_stmt(Context &);
   std::unique_ptr<const ast::Expression> parse_expr(Context &);
   std::unique_ptr<const ast::Expression> parse_decl(Context &);
+  std::unique_ptr<const ast::Expression> parse_if(Context &);
   std::unique_ptr<const ast::Expression> parse_primary(Context &);
   std::unique_ptr<const ast::Expression> parse_operand(Context &);
   std::unique_ptr<const ast::Expression> parse_call(Context &,
                                                     const std::string &);
   std::unique_ptr<const ast::Expression> parse_paren_expr(Context &);
   std::unique_ptr<const ast::Expression>
-  parse_binary_expr(Context &, int, std::unique_ptr<const ast::Expression> lhs);
+  parse_binary_expr(Context &, int, std::unique_ptr<const ast::Expression>);
 
   std::unique_ptr<const ast::Identifier> parse_identifier(Context &);
   std::unique_ptr<const ast::Integer> parse_integer(Context &);
+
+  void gather_block(Context &,
+                    std::vector<std::unique_ptr<const ast::Expression>> &);
 
 public:
   enum Precedence {

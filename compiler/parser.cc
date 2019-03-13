@@ -106,12 +106,63 @@ Parser::parse_fn_body(Context &ctx) {
     return body;
   }
 
+  gather_block(ctx, body);
+  return body;
+}
+
+std::unique_ptr<const ast::Expression> Parser::parse_stmt(Context &ctx) {
+  switch (peek()->type()) {
+  case Token::Type::tKEYWORD:
+    switch (peek()->keyword()) {
+    case Token::Keyword::kwVAL:
+      return parse_decl(ctx);
+    case Token::Keyword::kwIF:
+      return parse_if(ctx);
+    default:
+      return parse_expr(ctx);
+    }
+  default:
+    return parse_expr(ctx);
+  }
+}
+
+std::unique_ptr<const ast::Expression> Parser::parse_if(Context &ctx) {
+  auto token = advance();
+  if (!token->is_keyword(Token::Keyword::kwIF) &&
+      !token->is_keyword(Token::Keyword::kwELIF)) {
+    ctx.report_error(
+        Error::unexpected_token(*token, "Expected `if' or `elif'"));
+    return nullptr;
+  }
+
+  auto cond = parse_expr(ctx);
+  std::vector<std::unique_ptr<const ast::Expression>> thn;
+  std::vector<std::unique_ptr<const ast::Expression>> els;
+
+  gather_block(ctx, thn);
+
+  if (peek()->is_keyword(Token::Keyword::kwELSE)) {
+    advance(); // eat 'else'
+    gather_block(ctx, els);
+  } else if (peek()->is_keyword(Token::Keyword::kwELIF)) {
+    auto expr = parse_if(ctx);
+    if (expr != nullptr) {
+      els.push_back(std::move(expr));
+    }
+  }
+
+  return std::make_unique<ast::If>(std::move(cond), std::move(thn),
+                                   std::move(els));
+}
+
+void Parser::gather_block(
+    Context &ctx, std::vector<std::unique_ptr<const ast::Expression>> &body) {
   if (!peek()->is_operator(Token::Operator::opLCURLY)) {
     auto expr = parse_stmt(ctx);
     if (expr != nullptr) {
       body.push_back(std::move(expr));
     }
-    return body;
+    return;
   } else {
     advance(); // eat '{'
   }
@@ -123,32 +174,14 @@ Parser::parse_fn_body(Context &ctx) {
       break;
     }
 
-    auto peep = peek();
-    if (peep->is_operator(Token::Operator::opRCURLY)) {
+    if (peek()->is_operator(Token::Operator::opRCURLY)) {
       break;
     }
   }
 
-  token = advance();
+  auto token = advance();
   if (!token->is_operator(Token::Operator::opRCURLY)) {
     ctx.report_error(Error::unexpected_token(*token, "Expected fn '}'"));
-    return body;
-  }
-
-  return body;
-}
-
-std::unique_ptr<const ast::Expression> Parser::parse_stmt(Context &ctx) {
-  switch (peek()->type()) {
-  case Token::Type::tKEYWORD:
-    switch (peek()->keyword()) {
-    case Token::Keyword::kwVAL:
-      return parse_decl(ctx);
-    default:
-      return parse_expr(ctx);
-    }
-  default:
-    return parse_expr(ctx);
   }
 }
 
@@ -242,7 +275,7 @@ std::unique_ptr<const ast::Expression> Parser::parse_primary(Context &ctx) {
     }
   default:
     // TODO: report error
-    ctx.report_error(Error::unexpected_token(*peep, "Expected token type"));
+    // ctx.report_error(Error::unexpected_token(*peep, "Expected token type"));
     return nullptr;
   }
 }

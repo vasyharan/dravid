@@ -36,6 +36,7 @@ class Assignment;
 class BinaryExpression;
 class Call;
 class Function;
+class If;
 class Identifier;
 class Integer;
 class Parameter;
@@ -49,6 +50,7 @@ public:
   virtual void visit(const BinaryExpression &) = 0;
   virtual void visit(const Call &) = 0;
   virtual void visit(const Function &) = 0;
+  virtual void visit(const If &) = 0;
   virtual void visit(const Identifier &) = 0;
   virtual void visit(const Integer &) = 0;
   virtual void visit(const Parameter &) = 0;
@@ -126,6 +128,31 @@ public:
   const Prototype &proto() const { return *prototype_; }
   const std::vector<std::unique_ptr<const Expression>> &body() const {
     return body_;
+  }
+
+  virtual void print(std::ostream &out, int indent = 0) const override;
+  MAKE_VISITABLE;
+};
+
+class If : public Expression {
+  std::unique_ptr<const Expression> cond_;
+  const std::vector<std::unique_ptr<const Expression>> then_;
+  const std::vector<std::unique_ptr<const Expression>> else_;
+
+public:
+  If(std::unique_ptr<const Expression> cond,
+     std::vector<std::unique_ptr<const Expression>> thn,
+     std::vector<std::unique_ptr<const Expression>> els)
+      : cond_(std::move(cond)), then_(std::move(thn)), else_(std::move(els)) {}
+  If(const If &) = delete;
+  If(If &&) = delete;
+
+  const Expression &cond() const { return *cond_; }
+  const std::vector<std::unique_ptr<const Expression>> &thn() const {
+    return then_;
+  }
+  const std::vector<std::unique_ptr<const Expression>> &els() const {
+    return else_;
   }
 
   virtual void print(std::ostream &out, int indent = 0) const override;

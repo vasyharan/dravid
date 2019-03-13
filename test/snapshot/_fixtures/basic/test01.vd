@@ -1,6 +1,12 @@
 fn foo1(a, b, c) = {
-   val d = 10 * 2
-   (a + 10) * b - d * c
+  val d = 10 * c
+  if d {
+    (a + 10)
+  } elif a {
+    (a - 10)
+  } else {
+    (a * 10)
+  }
 }
 
 fn main() = {

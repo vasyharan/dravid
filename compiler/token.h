@@ -27,6 +27,9 @@ public:
     kwFN = 1,
     kwVAR,
     kwVAL,
+    kwIF,
+    kwELSE,
+    kwELIF,
   };
 
   enum Operator {

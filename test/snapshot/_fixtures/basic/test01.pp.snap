@@ -1,16 +1,22 @@
-(fn (proto foo
+(fn (proto foo1
            ((param var a)
             (param var b)
             (param var c)))
-    ((-
-     (*
-      (+
-       (id a)
-       (int 10))
-      (id b))
-     (/
-      (int 1)
-      (id c)))))
+    ((val d
+          (*
+           (int 10)
+           (id c)))
+     (if (id d)
+         ((+
+          (id a)
+          (int 10))
+         ((if (id a)
+             ((-
+              (id a)
+              (int 10))
+             ((*
+              (id a)
+              (int 10))))))
 (fn (proto main ())
     ((call foo
            (int 1)

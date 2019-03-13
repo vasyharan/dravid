@@ -41,6 +41,7 @@ public:
   void visit(const ast::BinaryExpression &);
   void visit(const ast::Call &);
   void visit(const ast::Function &);
+  void visit(const ast::If &);
   void visit(const ast::Identifier &);
   void visit(const ast::Integer &);
   void visit(const ast::Parameter &);
