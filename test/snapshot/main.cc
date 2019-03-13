@@ -97,9 +97,9 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     Context ctx(global_ctx, entry.path().string(), in);
 
     {
-      Parser parser;
       LoggingLexer lexer(ctx);
-      parser.parse(lexer, ctx);
+      Parser parser(lexer, ctx);
+      parser.parse();
 
       auto &lexbuf = lexer.finish();
       compare(lexbuf.str(), testname, ".ll", write_output,
