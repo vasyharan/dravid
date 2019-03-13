@@ -1,5 +1,6 @@
-fn foo(a, b, c) = {
-   (a + 10) * b - 1 / c
+fn foo1(a, b, c) = {
+   val d = 10 * 2
+   (a + 10) * b - d * c
 }
 
 fn main() = {

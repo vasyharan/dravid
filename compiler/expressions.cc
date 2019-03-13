@@ -127,7 +127,7 @@ void Value::print(std::ostream &out, int indent) const {
   if (value_ == nullptr) {
     out << " nil";
   } else {
-    out << "\n";
+    out << "\n" << std::string(indent + 6, ' ');
     value_->print(out, indent + 6);
   }
   out << ")";

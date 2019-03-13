@@ -129,10 +129,14 @@ void Codegen::visit(const ast::Function &fn) {
     scope.symbol_add(arg.getName(), &arg);
   }
 
-  assert(fn.body().size() == 1);
-  fn.body()[0]->accept(*this);
+  for (auto &expr : fn.body()) {
+    expr->accept(*this);
+  }
+
   Value *retval = _stack.top();
-  _stack.pop();
+  for (auto i = 0; i < fn.body().size(); ++i) {
+    _stack.pop();
+  }
   if (!retval) {
     val->eraseFromParent();
     _stack.push(nullptr);
@@ -184,7 +188,13 @@ void Codegen::visit(const ast::Prototype &proto) {
 }
 
 void Codegen::visit(const ast::TupleAssignment &param) {}
-void Codegen::visit(const ast::Value &param) {}
+void Codegen::visit(const ast::Value &v) {
+  v.value().accept(*this);
+  auto val = _stack.top();
+  if (v.constant()) {
+    _ctx.top_scope().symbol_add(v.name(), val);
+  }
+}
 
 } // namespace codegen
 } // namespace compiler
