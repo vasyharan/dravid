@@ -22,10 +22,17 @@ Error::Error(Kind kind, const std::string &msg, const std::string &explanation)
 std::unique_ptr<Error> Error::unexpected_token(const Token &token) {
   return unexpected_token(token, "");
 }
+
 std::unique_ptr<Error> Error::unexpected_token(const Token &token,
                                                const std::string &explanation) {
   auto error =
       new Error(Kind::SYNTAX, "Unexpected " + token.string(), explanation);
+  return std::unique_ptr<Error>(error);
+}
+
+std::unique_ptr<Error> Error::unknown(const std::string &msg,
+                                      const std::string &explanation) {
+  auto error = new Error(Kind::INVALID, msg, explanation);
   return std::unique_ptr<Error>(error);
 }
 

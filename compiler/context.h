@@ -23,6 +23,7 @@ namespace compiler {
 class Error {
 private:
   enum Kind {
+    INVALID = -1,
     SYNTAX = 1,
   };
   static const std::string to_string(const Kind k);
@@ -34,9 +35,12 @@ private:
   Error(Kind kind, const std::string &msg, const std::string &explanation);
 
 public:
-  static std::unique_ptr<Error> unexpected_token(const Token &token);
-  static std::unique_ptr<Error>
-  unexpected_token(const Token &token, const std::string &explanation);
+  static std::unique_ptr<Error> unexpected_token(const Token &);
+  static std::unique_ptr<Error> unexpected_token(const Token &,
+                                                 const std::string &);
+
+  static std::unique_ptr<Error> unknown(const std::string &,
+                                        const std::string &);
 
   friend std::ostream &operator<<(std::ostream &out, const Error &err);
 };

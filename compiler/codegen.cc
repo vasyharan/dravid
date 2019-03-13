@@ -35,7 +35,9 @@ void Codegen::generate() {
   }
 }
 
-void Codegen::visit(const ast::Assignment &asgn) {}
+void Codegen::visit(const ast::Assignment &asgn) {
+  _ctx.report_error(Error::unknown("assignment codegen unimplemented", ""));
+}
 
 void Codegen::visit(const ast::BinaryExpression &expr) {
   expr.left().accept(*this);
@@ -242,7 +244,11 @@ void Codegen::visit(const ast::Prototype &proto) {
   _stack.push(fn);
 }
 
-void Codegen::visit(const ast::TupleAssignment &param) {}
+void Codegen::visit(const ast::TupleAssignment &param) {
+  _ctx.report_error(
+      Error::unknown("tuple assignment codegen unimplemented", ""));
+}
+
 void Codegen::visit(const ast::Value &v) {
   v.value().accept(*this);
   auto val = _stack.top();
