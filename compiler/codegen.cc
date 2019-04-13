@@ -13,7 +13,7 @@ namespace compiler {
 namespace codegen {
 
 Codegen::Codegen(Context &ctx)
-    : _ctx(ctx), _module{llvm::Module(ctx.name(), ctx.llvm())},
+    : _ctx(ctx), _module(*(new llvm::Module(ctx.name(), ctx.llvm()))),
       _builder(ctx.llvm()), _fpm(&_module) {
   // Do simple "peephole" optimizations and bit-twiddling optzns.
   // _fpm.add(llvm::createInstructionCombiningPass());
@@ -136,7 +136,7 @@ void Codegen::visit(const ast::Function &fn) {
   }
 
   Value *retval = _stack.top();
-  for (auto i = 0; i < fn.body().size(); ++i) {
+  for (uint32_t i = 0; i < fn.body().size(); ++i) {
     _stack.pop();
   }
   if (!retval) {
@@ -177,7 +177,7 @@ void Codegen::visit(const ast::If &if_) {
     expr->accept(*this);
   }
   Value *thnV = _stack.top();
-  for (auto i = 0; i < if_.thn().size(); ++i) {
+  for (uint32_t i = 0; i < if_.thn().size(); ++i) {
     _stack.pop();
   }
 
@@ -191,7 +191,7 @@ void Codegen::visit(const ast::If &if_) {
     expr->accept(*this);
   }
   Value *elsV = _stack.top();
-  for (auto i = 0; i < if_.els().size(); ++i) {
+  for (uint32_t i = 0; i < if_.els().size(); ++i) {
     _stack.pop();
   }
   _builder.CreateBr(mrg);

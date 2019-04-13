@@ -25,7 +25,7 @@ namespace compiler {
 namespace codegen {
 class Codegen : public ast::Visitor {
   Context &_ctx;
-  llvm::Module _module;
+  llvm::Module &_module;
   llvm::IRBuilder<> _builder;
   llvm::legacy::FunctionPassManager _fpm;
   std::stack<llvm::Value *> _stack;

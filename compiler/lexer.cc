@@ -5,6 +5,8 @@
 namespace lang {
 namespace compiler {
 
+// Static Methods
+//------------------------------------------------------------------------------
 const std::string to_string(const Token::Keyword keyword) {
   switch (keyword) {
   case Token::Keyword::kwFN:
@@ -58,17 +60,21 @@ const std::string to_string(const Token::Operator op) {
   }
 }
 
+// Reader
+//------------------------------------------------------------------------------
 Reader::Reader(const std::string &name, std::istream &in)
-    : /* name_(name), */
-      in_(in), line_(), lineit_(line_.cbegin()), lineoff_(0), lineno_(0) {}
+    : name_(name), in_(in), line_(), lineit_(line_.cbegin()), lineoff_(0),
+      lineno_(0) {}
 Reader::~Reader() {}
 
 bool Reader::good() { return lineit_ != line_.cend(); }
+
 Reader &Reader::operator++() {
   ++lineoff_;
   ++lineit_;
   return *this;
 }
+
 bool Reader::require_line() {
   while (in_.good() && lineit_ == line_.cend()) {
     std::getline(in_, line_);
@@ -80,8 +86,11 @@ bool Reader::require_line() {
   return lineit_ != line_.cend();
 }
 unsigned char Reader::read() { return *lineit_; }
+
 Token::Location Reader::loc() { return Token::Location(lineno_, lineoff_); }
 
+// Lexer
+//------------------------------------------------------------------------------
 Lexer::Lexer(Context &ctx) : reader_(Reader(ctx.name(), ctx.in())) {}
 
 Lexer::~Lexer() {}
@@ -325,17 +334,6 @@ std::unique_ptr<Token> Lexer::gather_numeric() {
 
   return Token::make_integer(std::stoi(buf), loc);
 }
-
-// bool Lexer::require_line() {
-//   while (in_.good() && lineit_ == line_.cend()) {
-//     std::getline(in_, line_);
-//     lineit_ = line_.cbegin();
-//     ++lineno_;
-//     lineoff_ = 1;
-//   }
-
-//   return lineit_ != line_.cend();
-// }
 
 } // namespace compiler
 } // namespace lang
