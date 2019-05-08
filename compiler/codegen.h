@@ -37,17 +37,17 @@ public:
   void generate();
   const llvm::Module &module() const;
 
-  void visit(const ast::Assignment &);
-  void visit(const ast::BinaryExpression &);
-  void visit(const ast::Call &);
-  void visit(const ast::Function &);
-  void visit(const ast::If &);
-  void visit(const ast::Identifier &);
-  void visit(const ast::Integer &);
-  void visit(const ast::Parameter &);
-  void visit(const ast::Prototype &);
-  void visit(const ast::TupleAssignment &);
-  void visit(const ast::Value &);
+  void visit(std::shared_ptr<const ast::Assignment>);
+  void visit(std::shared_ptr<const ast::BinaryExpression>);
+  void visit(std::shared_ptr<const ast::Call>);
+  void visit(std::shared_ptr<const ast::Function>);
+  void visit(std::shared_ptr<const ast::If>);
+  void visit(std::shared_ptr<const ast::Identifier>);
+  void visit(std::shared_ptr<const ast::Integer>);
+  void visit(std::shared_ptr<const ast::Parameter>);
+  void visit(std::shared_ptr<const ast::Prototype>);
+  void visit(std::shared_ptr<const ast::TupleAssignment>);
+  void visit(std::shared_ptr<const ast::Value>);
 };
 
 } // namespace codegen

@@ -93,8 +93,8 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
     auto testname = fs::relative(entry.path(), fs::path(dir));
     std::fstream in(entry.path().string(), std::ios::in);
 
-    GlobalContext global_ctx;
-    Context ctx(global_ctx, entry.path().string(), in);
+    GlobalContext gctx;
+    Context ctx(gctx, entry.path().string(), in);
 
     {
       LoggingLexer lexer(ctx);
@@ -109,16 +109,29 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
 
     {
       std::stringstream parsebuf;
-      for (auto &node : ctx.nodes()) {
-        parsebuf << *node << "\n";
-      }
+      ctx.each_expr([&parsebuf](const ast::Expression &node) -> void {
+        parsebuf << node << "\n";
+      });
       parsebuf.flush();
+
       compare(parsebuf.str(), testname, ".pp", write_output,
               with_ext(entry.path(), ".pp.snap"),
               with_ext(entry.path(), ".pp.out"));
     }
 
-    if (ctx.errors().empty()) {
+    {
+      std::stringstream cfgbuf;
+      ctx.each_block([&cfgbuf](const cfg::BasicBlock &block) -> void {
+        cfgbuf << block << "\n";
+      });
+      cfgbuf.flush();
+
+      compare(cfgbuf.str(), testname, ".cfg", write_output,
+              with_ext(entry.path(), ".cfg.snap"),
+              with_ext(entry.path(), ".cfg.out"));
+    }
+
+    if (ctx.good()) {
       codegen::Codegen codegen(ctx);
       codegen.generate();
 
@@ -132,10 +145,11 @@ void run_snapshots(const std::string &dir, const bool write_output = false) {
 
     {
       std::stringstream errorbuf;
-      for (auto &err : ctx.errors()) {
-        errorbuf << *err << "\n";
-      }
+      ctx.each_error([&errorbuf](const err::Error &err) -> void {
+        errorbuf << err << "\n";
+      });
       errorbuf.flush();
+
       compare(errorbuf.str(), testname, ".err", write_output,
               with_ext(entry.path(), ".err.snap"),
               with_ext(entry.path(), ".err.out"));

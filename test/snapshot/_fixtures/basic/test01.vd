@@ -11,6 +11,8 @@ fn foo1(a, b, c) = {
 
 fn main() = {
   foo(1, 2, 3)
+  foo1(1, 2, 3)
+  foo2(1, 2, 3)
 }
 
 fn test1(x) = 1 + 2 + x

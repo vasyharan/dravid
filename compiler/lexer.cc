@@ -89,6 +89,8 @@ unsigned char Reader::read() { return *lineit_; }
 
 Token::Location Reader::loc() { return Token::Location(lineno_, lineoff_); }
 
+const std::string &Reader::name() const { return name_; }
+
 // Lexer
 //------------------------------------------------------------------------------
 Lexer::Lexer(Context &ctx) : reader_(Reader(ctx.name(), ctx.in())) {}

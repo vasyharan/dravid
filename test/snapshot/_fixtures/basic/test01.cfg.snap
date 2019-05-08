@@ -1,0 +1,51 @@
+(bb 
+   (val d
+          (*
+           (int 10)
+           (id c)))
+   (id d))
+(bb 
+   (+
+     (id a)
+     (int 10)))
+(bb 
+   (id a))
+(bb 
+   (-
+     (id a)
+     (int 10)))
+(bb 
+   (*
+     (id a)
+     (int 10)))
+(bb 
+   (call foo
+           (int 1)
+           (int 2)
+           (int 3))
+   (call foo1
+           (int 1)
+           (int 2)
+           (int 3))
+   (call foo2
+           (int 1)
+           (int 2)
+           (int 3)))
+(bb 
+   (+
+     (+
+      (int 1)
+      (int 2))
+     (id x)))
+(bb 
+   (*
+     (+
+      (+
+       (int 1)
+       (int 2))
+      (id x))
+     (+
+      (id x)
+      (+
+       (int 1)
+       (int 2)))))

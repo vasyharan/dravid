@@ -1,5 +1,7 @@
+#include "cfg.h"
 #include "parser.h"
 #include <cassert>
+#include <memory>
 
 namespace lang {
 namespace compiler {
@@ -16,7 +18,7 @@ void Parser::parse() {
   auto peep = peek();
   while (!peep->eof()) {
     if (!peep->is_keyword()) {
-      _ctx.report_error(Error::unexpected_token(*peep));
+      _ctx.report_error(err::unexpected_token(*peep));
       break;
     }
 
@@ -32,12 +34,14 @@ void Parser::parse() {
 
     peep = peek();
   }
+
+  cfg::CFGParser::parse_into(_ctx);
 }
 
-std::unique_ptr<const ast::Function> Parser::parse_fn() {
+std::shared_ptr<const ast::Function> Parser::parse_fn() {
   auto token = advance();
   if (!token->is_keyword(Token::Keyword::kwFN)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected `fn'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected `fn'"));
 
     return nullptr;
   }
@@ -48,29 +52,29 @@ std::unique_ptr<const ast::Function> Parser::parse_fn() {
 
   auto body = parse_fn_body();
 
-  return std::make_unique<const ast::Function>(std::move(prototype),
+  return std::make_shared<const ast::Function>(std::move(prototype),
                                                std::move(body));
 }
 
-std::unique_ptr<const ast::Prototype> Parser::parse_prototype() {
+std::shared_ptr<const ast::Prototype> Parser::parse_prototype() {
   auto token = advance();
   if (!token->is_identifier()) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected fn name"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected fn name"));
     return nullptr;
   }
 
   const std::string name = token->identifier();
   auto params = parse_parameters();
 
-  return std::make_unique<const ast::Prototype>(name, std::move(params));
+  return std::make_shared<const ast::Prototype>(name, std::move(params));
 }
 
-std::vector<std::unique_ptr<const ast::Parameter>> Parser::parse_parameters() {
-  std::vector<std::unique_ptr<const ast::Parameter>> params;
+std::vector<std::shared_ptr<const ast::Parameter>> Parser::parse_parameters() {
+  std::vector<std::shared_ptr<const ast::Parameter>> params;
 
   auto token = advance();
   if (!token->is_operator(Token::Operator::opLPAREN)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected params '('"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected params '('"));
     return params;
   }
 
@@ -86,19 +90,19 @@ std::vector<std::unique_ptr<const ast::Parameter>> Parser::parse_parameters() {
   }
 
   if (!token->is_operator(Token::Operator::opRPAREN)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected params ')'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected params ')'"));
     return params;
   }
 
   return params;
 }
 
-std::vector<std::unique_ptr<const ast::Expression>> Parser::parse_fn_body() {
-  std::vector<std::unique_ptr<const ast::Expression>> body;
+std::vector<std::shared_ptr<const ast::Expression>> Parser::parse_fn_body() {
+  std::vector<std::shared_ptr<const ast::Expression>> body;
 
   auto token = advance();
   if (!token->is_operator(Token::Operator::opEQUAL)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected fn '='"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected fn '='"));
     return body;
   }
 
@@ -106,7 +110,7 @@ std::vector<std::unique_ptr<const ast::Expression>> Parser::parse_fn_body() {
   return body;
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_stmt() {
+std::shared_ptr<const ast::Expression> Parser::parse_stmt() {
   switch (peek()->type()) {
   case Token::Type::tKEYWORD:
     switch (peek()->keyword()) {
@@ -122,18 +126,17 @@ std::unique_ptr<const ast::Expression> Parser::parse_stmt() {
   }
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_if() {
+std::shared_ptr<const ast::Expression> Parser::parse_if() {
   auto token = advance();
   if (!token->is_keyword(Token::Keyword::kwIF) &&
       !token->is_keyword(Token::Keyword::kwELIF)) {
-    _ctx.report_error(
-        Error::unexpected_token(*token, "Expected `if' or `elif'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected `if' or `elif'"));
     return nullptr;
   }
 
   auto cond = parse_expr();
-  std::vector<std::unique_ptr<const ast::Expression>> thn;
-  std::vector<std::unique_ptr<const ast::Expression>> els;
+  std::vector<std::shared_ptr<const ast::Expression>> thn;
+  std::vector<std::shared_ptr<const ast::Expression>> els;
 
   gather_block(thn);
 
@@ -152,7 +155,7 @@ std::unique_ptr<const ast::Expression> Parser::parse_if() {
 }
 
 void Parser::gather_block(
-    std::vector<std::unique_ptr<const ast::Expression>> &body) {
+    std::vector<std::shared_ptr<const ast::Expression>> &body) {
   if (!peek()->is_operator(Token::Operator::opLCURLY)) {
     auto expr = parse_stmt();
     if (expr != nullptr) {
@@ -177,14 +180,14 @@ void Parser::gather_block(
 
   auto token = advance();
   if (!token->is_operator(Token::Operator::opRCURLY)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected fn '}'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected fn '}'"));
   }
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_decl() {
+std::shared_ptr<const ast::Expression> Parser::parse_decl() {
   auto token = advance();
   if (!token->is_keyword(Token::Keyword::kwVAL)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected `val'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected `val'"));
     return nullptr;
   }
 
@@ -199,11 +202,11 @@ std::unique_ptr<const ast::Expression> Parser::parse_decl() {
 
   token = advance();
   if (!token->is_operator(Token::Operator::opEQUAL)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected `='"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected `='"));
     return nullptr;
   }
 
-  std::vector<std::unique_ptr<const ast::Expression>> values;
+  std::vector<std::shared_ptr<const ast::Expression>> values;
   for (auto it = names.begin(); it != names.end(); ++it) {
     values.push_back(parse_expr());
 
@@ -213,7 +216,7 @@ std::unique_ptr<const ast::Expression> Parser::parse_decl() {
   }
 
   if (names.size() != values.size()) {
-    _ctx.report_error(Error::unexpected_token(
+    _ctx.report_error(err::unexpected_token(
         *token, "num of declarations: " + std::to_string(names.size()) +
                     "; does not match initialization: " +
                     std::to_string(values.size())));
@@ -225,12 +228,12 @@ std::unique_ptr<const ast::Expression> Parser::parse_decl() {
                                               std::move(values[0]));
   } else {
     _ctx.report_error(
-        Error::unexpected_token(*token, "NOT IMPLEMENTED: tuple assignment"));
+        err::unexpected_token(*token, "NOT IMPLEMENTED: tuple assignment"));
     return nullptr;
   }
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_expr() {
+std::shared_ptr<const ast::Expression> Parser::parse_expr() {
   auto lhs = parse_primary();
   if (!lhs) {
     return nullptr;
@@ -239,7 +242,7 @@ std::unique_ptr<const ast::Expression> Parser::parse_expr() {
   auto token = peek();
   if (!token->is_operator()) {
     _ctx.report_error(
-        Error::unexpected_token(*token, "Expected binary operator"));
+        err::unexpected_token(*token, "Expected binary operator"));
     return lhs;
   }
 
@@ -251,7 +254,7 @@ std::unique_ptr<const ast::Expression> Parser::parse_expr() {
   }
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_primary() {
+std::shared_ptr<const ast::Expression> Parser::parse_primary() {
   auto peep = peek();
   switch (peep->type()) {
   case Token::Type::tIDENTIFIER: {
@@ -271,18 +274,18 @@ std::unique_ptr<const ast::Expression> Parser::parse_primary() {
     }
   default:
     // TODO: report error
-    // ctx.report_error(Error::unexpected_token(*peep, "Expected token type"));
+    // ctx.report_error(err::unexpected_token(*peep, "Expected token type"));
     return nullptr;
   }
 }
 
-std::unique_ptr<const ast::Expression>
+std::shared_ptr<const ast::Expression>
 Parser::parse_call(const std::string &name) {
-  std::vector<std::unique_ptr<const ast::Expression>> args;
+  std::vector<std::shared_ptr<const ast::Expression>> args;
 
   auto token = advance();
   if (!token->is_operator(Token::Operator::opLPAREN)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected call '('"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected call '('"));
     return nullptr;
   }
 
@@ -296,14 +299,14 @@ Parser::parse_call(const std::string &name) {
   }
 
   if (!token->is_operator(Token::Operator::opRPAREN)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected call ')'"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected call ')'"));
     return nullptr;
   }
 
   return std::make_unique<const ast::Call>(name, std::move(args));
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_operand() {
+std::shared_ptr<const ast::Expression> Parser::parse_operand() {
   auto token = peek();
   switch (token->type()) {
   case Token::Type::tIDENTIFIER:
@@ -315,27 +318,27 @@ std::unique_ptr<const ast::Expression> Parser::parse_operand() {
       return parse_paren_expr();
     }
   default:
-    _ctx.report_error(Error::unexpected_token(*token, "Expected operand"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected operand"));
     return nullptr;
   }
 }
 
-std::unique_ptr<const ast::Identifier> Parser::parse_identifier() {
+std::shared_ptr<const ast::Identifier> Parser::parse_identifier() {
   assert(peek()->is_identifier());
   auto token = advance();
   return std::make_unique<ast::Identifier>(token->identifier());
 }
 
-std::unique_ptr<const ast::Integer> Parser::parse_integer() {
+std::shared_ptr<const ast::Integer> Parser::parse_integer() {
   assert(peek()->is_integer());
   auto token = advance();
   return std::make_unique<ast::Integer>(token->integer());
 }
 
-std::unique_ptr<const ast::Expression> Parser::parse_paren_expr() {
+std::shared_ptr<const ast::Expression> Parser::parse_paren_expr() {
   if (!peek()->is_operator(Token::Operator::opLPAREN)) {
     _ctx.report_error(
-        Error::unexpected_token(*peek(), "Expected paren expr '('"));
+        err::unexpected_token(*peek(), "Expected paren expr '('"));
     return nullptr;
   }
   advance();
@@ -346,18 +349,18 @@ std::unique_ptr<const ast::Expression> Parser::parse_paren_expr() {
 
   if (!peek()->is_operator(Token::Operator::opRPAREN)) {
     _ctx.report_error(
-        Error::unexpected_token(*peek(), "Expected paren expr ')'"));
+        err::unexpected_token(*peek(), "Expected paren expr ')'"));
     return nullptr;
   }
   advance();
 
   return expr;
 }
-std::unique_ptr<const ast::Expression>
-Parser::parse_assign(std::unique_ptr<const ast::Expression> lhs) {
+std::shared_ptr<const ast::Expression>
+Parser::parse_assign(std::shared_ptr<const ast::Expression> lhs) {
   auto token = advance();
   if (!token->is_operator(Token::Operator::opEQUAL)) {
-    _ctx.report_error(Error::unexpected_token(*token, "Expected '='"));
+    _ctx.report_error(err::unexpected_token(*token, "Expected '='"));
   }
 
   return std::make_unique<const ast::Assignment>(std::move(lhs), parse_expr());
@@ -377,9 +380,9 @@ Parser::Precedence determine_precedence(const Token &token) {
     return Parser::Precedence::INVALID;
   }
 }
-std::unique_ptr<const ast::Expression>
+std::shared_ptr<const ast::Expression>
 Parser::parse_binary_expr(int expr_precedence,
-                          std::unique_ptr<const ast::Expression> lhs) {
+                          std::shared_ptr<const ast::Expression> lhs) {
   while (true) {
     auto token = peek();
 

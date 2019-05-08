@@ -29,19 +29,17 @@ Codegen::~Codegen() {}
 
 const llvm::Module &Codegen::module() const { return _module; }
 
-void Codegen::generate() {
-  for (auto &node : _ctx.nodes()) {
-    node->accept(*this);
-  }
+void Codegen::generate() { _ctx.visit_ast(*this); }
+
+// void Codegen::visit(std::shared_ptr<const ast::Expression>) {}
+
+void Codegen::visit(std::shared_ptr<const ast::Assignment> asgn) {
+  _ctx.report_error(err::unknown("assignment codegen unimplemented", ""));
 }
 
-void Codegen::visit(const ast::Assignment &asgn) {
-  _ctx.report_error(Error::unknown("assignment codegen unimplemented", ""));
-}
-
-void Codegen::visit(const ast::BinaryExpression &expr) {
-  expr.left().accept(*this);
-  expr.right().accept(*this);
+void Codegen::visit(std::shared_ptr<const ast::BinaryExpression> expr) {
+  expr->left().accept(*this);
+  expr->right().accept(*this);
 
   auto right = _stack.top();
   _stack.pop();
@@ -49,7 +47,7 @@ void Codegen::visit(const ast::BinaryExpression &expr) {
   _stack.pop();
 
   Value *val = nullptr;
-  switch (expr.op()) {
+  switch (expr->op()) {
   case '+':
     val = _builder.CreateAdd(left, right, "addtmp");
     break;
@@ -70,22 +68,22 @@ void Codegen::visit(const ast::BinaryExpression &expr) {
   _stack.push(val);
 }
 
-void Codegen::visit(const ast::Call &call) {
-  Function *callee = _module.getFunction(call.name());
+void Codegen::visit(std::shared_ptr<const ast::Call> call) {
+  Function *callee = _module.getFunction(call->name());
   if (!callee) {
     // log error;
     _stack.push(nullptr);
     return;
   }
 
-  if (callee->arg_size() != call.args().size()) {
+  if (callee->arg_size() != call->args().size()) {
     // log error;
     _stack.push(nullptr);
     return;
   }
 
   std::vector<Value *> args;
-  for (auto &expr : call.args()) {
+  for (auto &expr : call->args()) {
     expr->accept(*this);
     auto arg = _stack.top();
     _stack.pop();
@@ -101,13 +99,13 @@ void Codegen::visit(const ast::Call &call) {
   _stack.push(val);
 }
 
-void Codegen::visit(const ast::Function &fn) {
-  Function *val = _module.getFunction(fn.proto().name());
+void Codegen::visit(std::shared_ptr<const ast::Function> fn) {
+  Function *val = _module.getFunction(fn->proto().name());
   if (!val) {
-    fn.proto().accept(*this);
+    fn->proto().accept(*this);
     auto created = _stack.top(); // function created by proto.
     _stack.pop();
-    val = _module.getFunction(fn.proto().name());
+    val = _module.getFunction(fn->proto().name());
     assert(created == val);
   }
   if (!val) {
@@ -131,12 +129,12 @@ void Codegen::visit(const ast::Function &fn) {
     scope.symbol_add(arg.getName(), &arg);
   }
 
-  for (auto &expr : fn.body()) {
+  for (auto &expr : fn->body()) {
     expr->accept(*this);
   }
 
   Value *retval = _stack.top();
-  for (uint32_t i = 0; i < fn.body().size(); ++i) {
+  for (uint32_t i = 0; i < fn->body().size(); ++i) {
     _stack.pop();
   }
   if (!retval) {
@@ -152,8 +150,8 @@ void Codegen::visit(const ast::Function &fn) {
   _stack.push(val);
 }
 
-void Codegen::visit(const ast::If &if_) {
-  if_.cond().accept(*this);
+void Codegen::visit(std::shared_ptr<const ast::If> expr) {
+  expr->cond().accept(*this);
   auto cond = _stack.top();
   _stack.pop();
 
@@ -173,11 +171,11 @@ void Codegen::visit(const ast::If &if_) {
 
   // THEN
   _builder.SetInsertPoint(thn);
-  for (auto &expr : if_.thn()) {
+  for (auto &expr : expr->thn()) {
     expr->accept(*this);
   }
   Value *thnV = _stack.top();
-  for (uint32_t i = 0; i < if_.thn().size(); ++i) {
+  for (uint32_t i = 0; i < expr->thn().size(); ++i) {
     _stack.pop();
   }
 
@@ -187,11 +185,11 @@ void Codegen::visit(const ast::If &if_) {
   // ELSE
   fn->getBasicBlockList().push_back(els);
   _builder.SetInsertPoint(els);
-  for (auto &expr : if_.els()) {
+  for (auto &expr : expr->els()) {
     expr->accept(*this);
   }
   Value *elsV = _stack.top();
-  for (uint32_t i = 0; i < if_.els().size(); ++i) {
+  for (uint32_t i = 0; i < expr->els().size(); ++i) {
     _stack.pop();
   }
   _builder.CreateBr(mrg);
@@ -207,9 +205,9 @@ void Codegen::visit(const ast::If &if_) {
   _stack.push(phi);
 }
 
-void Codegen::visit(const ast::Identifier &id) {
+void Codegen::visit(std::shared_ptr<const ast::Identifier> id) {
   auto &scope = _ctx.top_scope();
-  auto val = scope.symbol_lookup(id.name());
+  auto val = scope.symbol_lookup(id->name());
   if (!val) {
     // report error
     _stack.push(nullptr);
@@ -219,24 +217,24 @@ void Codegen::visit(const ast::Identifier &id) {
   _stack.push(val);
 }
 
-void Codegen::visit(const ast::Integer &integer) {
-  auto val = ConstantInt::get(_ctx.llvm(), APInt(64, integer.value(), true));
+void Codegen::visit(std::shared_ptr<const ast::Integer> integer) {
+  auto val = ConstantInt::get(_ctx.llvm(), APInt(64, integer->value(), true));
   _stack.push(val);
 }
 
-void Codegen::visit(const ast::Parameter &param) {}
+void Codegen::visit(std::shared_ptr<const ast::Parameter> param) {}
 
-void Codegen::visit(const ast::Prototype &proto) {
-  std::vector<Type *> params(proto.params().size(),
+void Codegen::visit(std::shared_ptr<const ast::Prototype> proto) {
+  std::vector<Type *> params(proto->params().size(),
                              Type::getInt64Ty(_ctx.llvm()));
   FunctionType *fntype = FunctionType::get(Type::getInt64Ty(_ctx.llvm()),
                                            params, false /* IsVarArgs */);
   Function *fn = Function::Create(fntype, Function::ExternalLinkage,
-                                  proto.name(), &_module);
+                                  proto->name(), &_module);
 
   auto arg_it = fn->args().begin();
-  auto param_it = proto.params().begin();
-  for (; arg_it != fn->args().end() && param_it != proto.params().end();
+  auto param_it = proto->params().begin();
+  for (; arg_it != fn->args().end() && param_it != proto->params().end();
        ++arg_it, ++param_it) {
     (*arg_it).setName((*param_it)->name());
   }
@@ -244,16 +242,15 @@ void Codegen::visit(const ast::Prototype &proto) {
   _stack.push(fn);
 }
 
-void Codegen::visit(const ast::TupleAssignment &param) {
-  _ctx.report_error(
-      Error::unknown("tuple assignment codegen unimplemented", ""));
+void Codegen::visit(std::shared_ptr<const ast::TupleAssignment> param) {
+  _ctx.report_error(err::unknown("tuple assignment codegen unimplemented", ""));
 }
 
-void Codegen::visit(const ast::Value &v) {
-  v.value().accept(*this);
+void Codegen::visit(std::shared_ptr<const ast::Value> v) {
+  v->value().accept(*this);
   auto val = _stack.top();
-  if (v.constant()) {
-    _ctx.top_scope().symbol_add(v.name(), val);
+  if (v->constant()) {
+    _ctx.top_scope().symbol_add(v->name(), val);
   }
 }
 

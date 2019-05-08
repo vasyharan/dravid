@@ -13,6 +13,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 // #include "llvm/Transforms/Scalar/Reassociate.h"
+#include <functional>
 #include <memory>
 #include <stack>
 #include <vector>
@@ -20,30 +21,43 @@
 namespace lang {
 namespace compiler {
 
+namespace err {
+class Visitor;
+
+enum Kind {
+  INVALID = -1,
+  SYNTAX = 1,
+};
+
 class Error {
 private:
-  enum Kind {
-    INVALID = -1,
-    SYNTAX = 1,
-  };
   static const std::string to_string(const Kind k);
 
   const Kind _kind;
   const std::string _msg;
   const std::string _explanation;
 
+public:
   Error(Kind kind, const std::string &msg, const std::string &explanation);
 
-public:
-  static std::unique_ptr<Error> unexpected_token(const Token &);
-  static std::unique_ptr<Error> unexpected_token(const Token &,
-                                                 const std::string &);
-
-  static std::unique_ptr<Error> unknown(const std::string &,
-                                        const std::string &);
-
   friend std::ostream &operator<<(std::ostream &out, const Error &err);
+
+  void accept(Visitor &) const;
 };
+
+// UnexpectedToken error
+std::unique_ptr<Error> unexpected_token(const Token &);
+// UnexpectedToken error
+std::unique_ptr<Error> unexpected_token(const Token &, const std::string &);
+// Unknown error
+std::unique_ptr<Error> unknown(const std::string &, const std::string &);
+
+class Visitor {
+public:
+  virtual void visit(const Error &err) = 0;
+};
+
+} // namespace err
 
 class Scope {
   std::map<std::string, llvm::Value *> values_;
@@ -64,8 +78,9 @@ class Context {
   const std::string _name;
   std::istream &_in;
 
-  std::vector<std::unique_ptr<const Error>> _errors;
-  std::vector<std::unique_ptr<const ast::Expression>> _nodes;
+  std::vector<std::unique_ptr<const err::Error>> _errors;
+  std::vector<std::shared_ptr<const ast::Expression>> _nodes;
+  std::vector<std::unique_ptr<const cfg::BasicBlock>> _blocks;
 
   GlobalContext &_global;
   std::stack<Scope> _stack;
@@ -74,8 +89,9 @@ public:
   Context(GlobalContext &global, const std::string &name, std::istream &in);
   Context(const Context &) = delete;
 
-  void report_error(std::unique_ptr<const Error> error);
-  void push_node(std::unique_ptr<const ast::Expression> node);
+  void report_error(std::unique_ptr<const err::Error> error);
+  void push_node(std::shared_ptr<const ast::Expression> node);
+  void push_block(std::unique_ptr<const cfg::BasicBlock> block);
 
   // symbol table
   Scope &push_scope();
@@ -86,8 +102,14 @@ public:
   std::istream &in();
   GlobalContext &global();
   llvm::LLVMContext &llvm();
-  std::vector<std::unique_ptr<const ast::Expression>> &nodes();
-  std::vector<std::unique_ptr<const Error>> &errors();
+  bool good() const;
+
+  void visit_ast(ast::Visitor &vistor);
+  // void visit_block(cfg::Visitor &vistor);
+
+  void each_expr(std::function<void(const ast::Expression &)>);
+  void each_block(std::function<void(const cfg::BasicBlock &)>);
+  void each_error(std::function<void(const err::Error &)>);
 
   // llvm::LLVMContext &llvm() { return _llvm; }
   // llvm::IRBuilder<> &builder() { return _builder; }

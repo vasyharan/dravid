@@ -5,7 +5,7 @@ namespace compiler {
 namespace ast {
 
 void print_body(std::ostream &out, int indent,
-                const std::vector<std::unique_ptr<const Expression>> &body) {
+                const std::vector<std::shared_ptr<const Expression>> &body) {
   if (body.empty()) {
     out << "\n" << std::string(indent + 4, ' ') << "())";
     return;
@@ -148,5 +148,18 @@ void Value::print(std::ostream &out, int indent) const {
 }
 
 } // namespace ast
+
+namespace cfg {
+
+void BasicBlock::print(std::ostream &out, int indent) const {
+  out << "(bb ";
+  for (auto &expr : _expressions) {
+    out << "\n" << std::string(indent + 3, ' ');
+    (expr)->print(out, indent + 4);
+  }
+  out << ")";
+}
+
+} // namespace cfg
 } // namespace compiler
 } // namespace lang

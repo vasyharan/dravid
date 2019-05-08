@@ -33,6 +33,7 @@ public:
   Token::Location loc();
   unsigned char read();
   Reader &operator++();
+  const std::string &name() const;
 };
 
 class ILexer {

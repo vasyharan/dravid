@@ -1,6 +1,5 @@
 #/bin/sh
 root=$(realpath "$(dirname $0)/..")
-
 build=($realpath "${root}/build")
 fixtures=($realpath "${root}/test/snapshot/_fixtures")
 "$build/test/snapshot/test-snapshot" $@ -- "$root/test/snapshot/_fixtures" | \
