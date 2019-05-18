@@ -8,7 +8,7 @@ namespace compiler {
 
 // Location UNKNOWN_LOC = Location();
 
-Parser::Parser(ILexer &lexer, Context &ctx)
+Parser::Parser(lex::ILexer &lexer, Context &ctx)
     : _ctx(ctx), _lexer(lexer), _curr_token(nullptr), _next_token(nullptr) {}
 
 Parser::~Parser() {}
@@ -23,7 +23,7 @@ void Parser::parse() {
     }
 
     switch (peep->keyword()) {
-    case Token::Keyword::kwFN:
+    case lex::Keyword::kwFN:
       if (auto fn = parse_fn()) {
         _ctx.push_node(std::move(fn));
       }
@@ -40,7 +40,7 @@ void Parser::parse() {
 
 std::shared_ptr<const ast::Function> Parser::parse_fn() {
   auto token = advance();
-  if (!token->is_keyword(Token::Keyword::kwFN)) {
+  if (!token->is_keyword(lex::Keyword::kwFN)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected `fn'"));
 
     return nullptr;
@@ -73,7 +73,7 @@ std::vector<std::shared_ptr<const ast::Parameter>> Parser::parse_parameters() {
   std::vector<std::shared_ptr<const ast::Parameter>> params;
 
   auto token = advance();
-  if (!token->is_operator(Token::Operator::opLPAREN)) {
+  if (!token->is_operator(lex::Operator::opLPAREN)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected params '('"));
     return params;
   }
@@ -84,12 +84,12 @@ std::vector<std::shared_ptr<const ast::Parameter>> Parser::parse_parameters() {
     params.push_back(std::move(param));
 
     token = advance();
-    if (!token->is_operator(Token::Operator::opCOMMA)) {
+    if (!token->is_operator(lex::Operator::opCOMMA)) {
       break;
     }
   }
 
-  if (!token->is_operator(Token::Operator::opRPAREN)) {
+  if (!token->is_operator(lex::Operator::opRPAREN)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected params ')'"));
     return params;
   }
@@ -101,7 +101,7 @@ std::vector<std::shared_ptr<const ast::Expression>> Parser::parse_fn_body() {
   std::vector<std::shared_ptr<const ast::Expression>> body;
 
   auto token = advance();
-  if (!token->is_operator(Token::Operator::opEQUAL)) {
+  if (!token->is_operator(lex::Operator::opEQUAL)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected fn '='"));
     return body;
   }
@@ -112,11 +112,11 @@ std::vector<std::shared_ptr<const ast::Expression>> Parser::parse_fn_body() {
 
 std::shared_ptr<const ast::Expression> Parser::parse_stmt() {
   switch (peek()->type()) {
-  case Token::Type::tKEYWORD:
+  case lex::Type::tKEYWORD:
     switch (peek()->keyword()) {
-    case Token::Keyword::kwVAL:
+    case lex::Keyword::kwVAL:
       return parse_decl();
-    case Token::Keyword::kwIF:
+    case lex::Keyword::kwIF:
       return parse_if();
     default:
       return parse_expr();
@@ -128,8 +128,8 @@ std::shared_ptr<const ast::Expression> Parser::parse_stmt() {
 
 std::shared_ptr<const ast::Expression> Parser::parse_if() {
   auto token = advance();
-  if (!token->is_keyword(Token::Keyword::kwIF) &&
-      !token->is_keyword(Token::Keyword::kwELIF)) {
+  if (!token->is_keyword(lex::Keyword::kwIF) &&
+      !token->is_keyword(lex::Keyword::kwELIF)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected `if' or `elif'"));
     return nullptr;
   }
@@ -140,10 +140,10 @@ std::shared_ptr<const ast::Expression> Parser::parse_if() {
 
   gather_block(thn);
 
-  if (peek()->is_keyword(Token::Keyword::kwELSE)) {
+  if (peek()->is_keyword(lex::Keyword::kwELSE)) {
     advance(); // eat 'else'
     gather_block(els);
-  } else if (peek()->is_keyword(Token::Keyword::kwELIF)) {
+  } else if (peek()->is_keyword(lex::Keyword::kwELIF)) {
     auto expr = parse_if();
     if (expr != nullptr) {
       els.push_back(std::move(expr));
@@ -156,7 +156,7 @@ std::shared_ptr<const ast::Expression> Parser::parse_if() {
 
 void Parser::gather_block(
     std::vector<std::shared_ptr<const ast::Expression>> &body) {
-  if (!peek()->is_operator(Token::Operator::opLCURLY)) {
+  if (!peek()->is_operator(lex::Operator::opLCURLY)) {
     auto expr = parse_stmt();
     if (expr != nullptr) {
       body.push_back(std::move(expr));
@@ -173,20 +173,20 @@ void Parser::gather_block(
       break;
     }
 
-    if (peek()->is_operator(Token::Operator::opRCURLY)) {
+    if (peek()->is_operator(lex::Operator::opRCURLY)) {
       break;
     }
   }
 
   auto token = advance();
-  if (!token->is_operator(Token::Operator::opRCURLY)) {
+  if (!token->is_operator(lex::Operator::opRCURLY)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected fn '}'"));
   }
 }
 
 std::shared_ptr<const ast::Expression> Parser::parse_decl() {
   auto token = advance();
-  if (!token->is_keyword(Token::Keyword::kwVAL)) {
+  if (!token->is_keyword(lex::Keyword::kwVAL)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected `val'"));
     return nullptr;
   }
@@ -195,13 +195,13 @@ std::shared_ptr<const ast::Expression> Parser::parse_decl() {
   for (token = advance(); token->is_identifier(); token = advance()) {
     names.push_back(token->identifier());
 
-    if (!peek()->is_operator(Token::Operator::opCOMMA)) {
+    if (!peek()->is_operator(lex::Operator::opCOMMA)) {
       break;
     }
   }
 
   token = advance();
-  if (!token->is_operator(Token::Operator::opEQUAL)) {
+  if (!token->is_operator(lex::Operator::opEQUAL)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected `='"));
     return nullptr;
   }
@@ -210,7 +210,7 @@ std::shared_ptr<const ast::Expression> Parser::parse_decl() {
   for (auto it = names.begin(); it != names.end(); ++it) {
     values.push_back(parse_expr());
 
-    if (!peek()->is_operator(Token::Operator::opCOMMA)) {
+    if (!peek()->is_operator(lex::Operator::opCOMMA)) {
       break;
     }
   }
@@ -247,7 +247,7 @@ std::shared_ptr<const ast::Expression> Parser::parse_expr() {
   }
 
   switch (token->op()) {
-  // case Token::Operator::opEQUAL:
+  // case lex::Operator::opEQUAL:
   //   return parse_assign(ctx, std::move(lhs));
   default:
     return parse_binary_expr(Precedence::NORMAL, std::move(lhs));
@@ -257,19 +257,19 @@ std::shared_ptr<const ast::Expression> Parser::parse_expr() {
 std::shared_ptr<const ast::Expression> Parser::parse_primary() {
   auto peep = peek();
   switch (peep->type()) {
-  case Token::Type::tIDENTIFIER: {
+  case lex::Type::tIDENTIFIER: {
     auto token = advance();
     peep = peek();
-    if (peep->is_operator(Token::Operator::opLPAREN)) {
+    if (peep->is_operator(lex::Operator::opLPAREN)) {
       return parse_call(token->identifier());
     } else {
       return std::make_unique<ast::Identifier>(token->identifier());
     }
   }
-  case Token::Type::tINTEGER:
+  case lex::Type::tINTEGER:
     return parse_integer();
-  case Token::Type::tOPERATOR:
-    if (peep->is_operator(Token::Operator::opLPAREN)) {
+  case lex::Type::tOPERATOR:
+    if (peep->is_operator(lex::Operator::opLPAREN)) {
       return parse_paren_expr();
     }
   default:
@@ -284,7 +284,7 @@ Parser::parse_call(const std::string &name) {
   std::vector<std::shared_ptr<const ast::Expression>> args;
 
   auto token = advance();
-  if (!token->is_operator(Token::Operator::opLPAREN)) {
+  if (!token->is_operator(lex::Operator::opLPAREN)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected call '('"));
     return nullptr;
   }
@@ -293,12 +293,12 @@ Parser::parse_call(const std::string &name) {
     args.push_back(parse_expr());
 
     token = advance();
-    if (!token->is_operator(Token::Operator::opCOMMA)) {
+    if (!token->is_operator(lex::Operator::opCOMMA)) {
       break;
     }
   }
 
-  if (!token->is_operator(Token::Operator::opRPAREN)) {
+  if (!token->is_operator(lex::Operator::opRPAREN)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected call ')'"));
     return nullptr;
   }
@@ -309,12 +309,12 @@ Parser::parse_call(const std::string &name) {
 std::shared_ptr<const ast::Expression> Parser::parse_operand() {
   auto token = peek();
   switch (token->type()) {
-  case Token::Type::tIDENTIFIER:
+  case lex::Type::tIDENTIFIER:
     return parse_identifier();
-  case Token::Type::tINTEGER:
+  case lex::Type::tINTEGER:
     return parse_integer();
-  case Token::Type::tOPERATOR:
-    if (token->is_operator(Token::Operator::opLPAREN)) {
+  case lex::Type::tOPERATOR:
+    if (token->is_operator(lex::Operator::opLPAREN)) {
       return parse_paren_expr();
     }
   default:
@@ -336,7 +336,7 @@ std::shared_ptr<const ast::Integer> Parser::parse_integer() {
 }
 
 std::shared_ptr<const ast::Expression> Parser::parse_paren_expr() {
-  if (!peek()->is_operator(Token::Operator::opLPAREN)) {
+  if (!peek()->is_operator(lex::Operator::opLPAREN)) {
     _ctx.report_error(
         err::unexpected_token(*peek(), "Expected paren expr '('"));
     return nullptr;
@@ -347,7 +347,7 @@ std::shared_ptr<const ast::Expression> Parser::parse_paren_expr() {
   if (!expr)
     return nullptr;
 
-  if (!peek()->is_operator(Token::Operator::opRPAREN)) {
+  if (!peek()->is_operator(lex::Operator::opRPAREN)) {
     _ctx.report_error(
         err::unexpected_token(*peek(), "Expected paren expr ')'"));
     return nullptr;
@@ -359,22 +359,22 @@ std::shared_ptr<const ast::Expression> Parser::parse_paren_expr() {
 std::shared_ptr<const ast::Expression>
 Parser::parse_assign(std::shared_ptr<const ast::Expression> lhs) {
   auto token = advance();
-  if (!token->is_operator(Token::Operator::opEQUAL)) {
+  if (!token->is_operator(lex::Operator::opEQUAL)) {
     _ctx.report_error(err::unexpected_token(*token, "Expected '='"));
   }
 
   return std::make_unique<const ast::Assignment>(std::move(lhs), parse_expr());
 }
 
-Parser::Precedence determine_precedence(const Token &token) {
+Parser::Precedence determine_precedence(const lex::Token &token) {
   if (!token.is_operator())
     return Parser::Precedence::INVALID;
   switch (token.op()) {
-  case Token::Operator::opSTAR:
-  case Token::Operator::opSLASH:
+  case lex::Operator::opSTAR:
+  case lex::Operator::opSLASH:
     return Parser::Precedence::MULOP;
-  case Token::Operator::opPLUS:
-  case Token::Operator::opDASH:
+  case lex::Operator::opPLUS:
+  case lex::Operator::opDASH:
     return Parser::Precedence::ADDOP;
   default:
     return Parser::Precedence::INVALID;
@@ -413,7 +413,7 @@ Parser::parse_binary_expr(int expr_precedence,
   return lhs;
 }
 
-std::unique_ptr<Token> Parser::advance() {
+std::unique_ptr<lex::Token> Parser::advance() {
   if (_curr_token == _next_token)
     _next_token = _lexer.lex();
 
@@ -423,7 +423,7 @@ std::unique_ptr<Token> Parser::advance() {
   return std::move(_curr_token);
 }
 
-Token *Parser::peek() const { return _next_token.get(); }
+lex::Token *Parser::peek() const { return _next_token.get(); }
 
 } // namespace compiler
 } // namespace lang

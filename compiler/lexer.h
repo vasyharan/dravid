@@ -12,6 +12,7 @@
 
 namespace lang {
 namespace compiler {
+namespace lex {
 
 class Reader {
   const std::string &name_;
@@ -30,7 +31,7 @@ public:
 
   bool good();
   bool require_line();
-  Token::Location loc();
+  Location loc();
   unsigned char read();
   Reader &operator++();
   const std::string &name() const;
@@ -48,8 +49,8 @@ public:
 class Lexer final : public ILexer {
   bool require_line();
 
-  Token::Keyword parse_keyword(const std::string &id);
-  Token::Operator parse_op();
+  Keyword parse_keyword(const std::string &id);
+  Operator parse_op();
 
   std::unique_ptr<Token> gather_identifier();
   std::unique_ptr<Token> gather_numeric();
@@ -59,8 +60,8 @@ class Lexer final : public ILexer {
   Reader reader_;
 
 public:
-  static std::string to_string(const Token::Keyword);
-  static std::string to_string(const Token::Operator);
+  static std::string to_string(const Keyword);
+  static std::string to_string(const Operator);
 
   Lexer(Context &);
   Lexer(const Lexer &) = delete;
@@ -71,6 +72,7 @@ public:
   std::vector<std::unique_ptr<Token>> reset() override;
 };
 
+} // namespace lex
 } // namespace compiler
 } // namespace lang
 

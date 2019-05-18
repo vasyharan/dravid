@@ -20,11 +20,11 @@ const std::string Error::to_string(const Kind k) {
 Error::Error(Kind kind, const std::string &msg, const std::string &explanation)
     : _kind(kind), _msg(msg), _explanation(explanation) {}
 
-std::unique_ptr<Error> unexpected_token(const Token &token) {
+std::unique_ptr<Error> unexpected_token(const lex::Token &token) {
   return unexpected_token(token, "");
 }
 
-std::unique_ptr<Error> unexpected_token(const Token &token,
+std::unique_ptr<Error> unexpected_token(const lex::Token &token,
                                         const std::string &explanation) {
   auto error =
       new Error(Kind::SYNTAX, "Unexpected " + token.string(), explanation);

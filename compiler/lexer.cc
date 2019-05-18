@@ -4,57 +4,58 @@
 
 namespace lang {
 namespace compiler {
+namespace lex {
 
 // Static Methods
 //------------------------------------------------------------------------------
-const std::string to_string(const Token::Keyword keyword) {
+const std::string to_string(const Keyword keyword) {
   switch (keyword) {
-  case Token::Keyword::kwFN:
+  case Keyword::kwFN:
     return "fn";
-  case Token::Keyword::kwIF:
+  case Keyword::kwIF:
     return "if";
-  case Token::Keyword::kwELSE:
+  case Keyword::kwELSE:
     return "else";
-  case Token::Keyword::kwELIF:
+  case Keyword::kwELIF:
     return "elif";
-  case Token::Keyword::kwVAR:
+  case Keyword::kwVAR:
     return "var";
-  case Token::Keyword::kwVAL:
+  case Keyword::kwVAL:
     return "val";
   default:
     return "kwINVALID";
   }
 }
 
-const std::string to_string(const Token::Operator op) {
+const std::string to_string(const Operator op) {
   switch (op) {
-  case Token::Operator::opLPAREN:
+  case Operator::opLPAREN:
     return "(";
-  case Token::Operator::opRPAREN:
+  case Operator::opRPAREN:
     return ")";
-  case Token::Operator::opLSQUARE:
+  case Operator::opLSQUARE:
     return "[";
-  case Token::Operator::opRSQUARE:
+  case Operator::opRSQUARE:
     return "]";
-  case Token::Operator::opLCURLY:
+  case Operator::opLCURLY:
     return "{";
-  case Token::Operator::opRCURLY:
+  case Operator::opRCURLY:
     return "}";
-  case Token::Operator::opCOMMA:
+  case Operator::opCOMMA:
     return ",";
-  case Token::Operator::opEQUAL:
+  case Operator::opEQUAL:
     return "=";
-  case Token::Operator::opPLUS:
+  case Operator::opPLUS:
     return "+";
-  case Token::Operator::opDASH:
+  case Operator::opDASH:
     return "-";
-  case Token::Operator::opSTAR:
+  case Operator::opSTAR:
     return "*";
-  case Token::Operator::opSLASH:
+  case Operator::opSLASH:
     return "/";
-  case Token::Operator::opCOMPARE:
+  case Operator::opCOMPARE:
     return "==";
-  case Token::Operator::opINVALID:
+  case Operator::opINVALID:
   default:
     return "opINVALID";
   }
@@ -87,7 +88,7 @@ bool Reader::require_line() {
 }
 unsigned char Reader::read() { return *lineit_; }
 
-Token::Location Reader::loc() { return Token::Location(lineno_, lineoff_); }
+Location Reader::loc() { return Location(lineno_, lineoff_); }
 
 const std::string &Reader::name() const { return name_; }
 
@@ -171,7 +172,7 @@ std::unique_ptr<Token> Lexer::lex() {
   }
 
   while (reader_.good()) {
-    Token::Location loc = reader_.loc();
+    Location loc = reader_.loc();
     unsigned char cc = reader_.read();
 
     switch (cc) {
@@ -218,68 +219,68 @@ std::unique_ptr<Token> Lexer::lex() {
   return Token::make_invalid();
 }
 
-Token::Operator Lexer::parse_op() {
+Operator Lexer::parse_op() {
   unsigned char op = reader_.read();
   ++reader_; // consume the last char.
 
   switch (op) {
   case '(':
-    return Token::Operator::opLPAREN;
+    return Operator::opLPAREN;
   case ')':
-    return Token::Operator::opRPAREN;
+    return Operator::opRPAREN;
   case '[':
-    return Token::Operator::opLSQUARE;
+    return Operator::opLSQUARE;
   case ']':
-    return Token::Operator::opRSQUARE;
+    return Operator::opRSQUARE;
   case '{':
-    return Token::Operator::opLCURLY;
+    return Operator::opLCURLY;
   case '}':
-    return Token::Operator::opRCURLY;
+    return Operator::opRCURLY;
   case ',':
-    return Token::Operator::opCOMMA;
+    return Operator::opCOMMA;
   case ':':
-    return Token::Operator::opCOLON;
+    return Operator::opCOLON;
   case '+':
-    return Token::Operator::opPLUS;
+    return Operator::opPLUS;
   case '-':
-    return Token::Operator::opDASH;
+    return Operator::opDASH;
   case ';':
-    return Token::Operator::opSEMICOLON;
+    return Operator::opSEMICOLON;
   case '*':
-    return Token::Operator::opSTAR;
+    return Operator::opSTAR;
   case '/':
-    return Token::Operator::opSLASH;
+    return Operator::opSLASH;
   case '=': {
     op = reader_.read();
     switch (op) {
     case '=':
       ++reader_; // consume the last =.
-      return Token::Operator::opCOMPARE;
+      return Operator::opCOMPARE;
     default:
-      return Token::Operator::opEQUAL;
+      return Operator::opEQUAL;
     }
   }
   default:
-    return Token::Operator::opINVALID;
+    return Operator::opINVALID;
   }
 }
 
-Token::Keyword Lexer::parse_keyword(const std::string &id) {
+Keyword Lexer::parse_keyword(const std::string &id) {
   if (id == "fn") {
-    return Token::Keyword::kwFN;
+    return Keyword::kwFN;
   } else if (id == "var") {
-    return Token::Keyword::kwVAR;
+    return Keyword::kwVAR;
   } else if (id == "val") {
-    return Token::Keyword::kwVAL;
+    return Keyword::kwVAL;
   } else if (id == "if") {
-    return Token::Keyword::kwIF;
+    return Keyword::kwIF;
   } else if (id == "else") {
-    return Token::Keyword::kwELSE;
+    return Keyword::kwELSE;
   } else if (id == "elif") {
-    return Token::Keyword::kwELIF;
+    return Keyword::kwELIF;
   }
 
-  return Token::Keyword::kwINVALID;
+  return Keyword::kwINVALID;
 }
 
 std::unique_ptr<Token> Lexer::gather_identifier() {
@@ -307,7 +308,7 @@ std::unique_ptr<Token> Lexer::gather_identifier() {
   }
 
   auto keyword = parse_keyword(*buf);
-  return keyword == Token::Keyword::kwINVALID
+  return keyword == Keyword::kwINVALID
              ? Token::make_identifier(std::move(buf), loc)
              : Token::make_keyword(keyword, loc);
 }
@@ -337,5 +338,6 @@ std::unique_ptr<Token> Lexer::gather_numeric() {
   return Token::make_integer(std::stoi(buf), loc);
 }
 
+} // namespace lex
 } // namespace compiler
 } // namespace lang

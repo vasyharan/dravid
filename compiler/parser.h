@@ -10,11 +10,11 @@ namespace compiler {
 
 class Parser {
   Context &_ctx;
-  ILexer &_lexer;
-  std::unique_ptr<Token> _curr_token, _next_token;
+  lex::ILexer &_lexer;
+  std::unique_ptr<lex::Token> _curr_token, _next_token;
 
-  std::unique_ptr<Token> advance();
-  Token *peek() const;
+  std::unique_ptr<lex::Token> advance();
+  lex::Token *peek() const;
 
   std::shared_ptr<const ast::Function> parse_fn();
   std::shared_ptr<const ast::Prototype> parse_prototype();
@@ -48,7 +48,7 @@ public:
     MULOP,
   };
 
-  Parser(ILexer &, Context &);
+  Parser(lex::ILexer &, Context &);
   Parser(const Parser &) = delete;
   Parser(Parser &&) = delete;
   ~Parser();

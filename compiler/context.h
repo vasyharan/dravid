@@ -46,9 +46,10 @@ public:
 };
 
 // UnexpectedToken error
-std::unique_ptr<Error> unexpected_token(const Token &);
+std::unique_ptr<Error> unexpected_token(const lex::Token &);
 // UnexpectedToken error
-std::unique_ptr<Error> unexpected_token(const Token &, const std::string &);
+std::unique_ptr<Error> unexpected_token(const lex::Token &,
+                                        const std::string &);
 // Unknown error
 std::unique_ptr<Error> unknown(const std::string &, const std::string &);
 

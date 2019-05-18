@@ -7,59 +7,69 @@
 
 namespace lang {
 namespace compiler {
+namespace lex {
+
+struct Location {
+  const uint32_t line;
+  const uint32_t col;
+
+  Location() : line(0), col(0) {}
+  Location(uint32_t l, uint32_t c) : line(l), col(c) {}
+};
+
+enum Keyword {
+  kwINVALID = -1,
+  kwFN = 1,
+  kwVAR,
+  kwVAL,
+  kwIF,
+  kwELSE,
+  kwELIF,
+};
+
+enum Operator {
+  opINVALID = -1,
+  opLPAREN = 40,
+  opRPAREN = 41,
+  opSTAR = 42,
+  opPLUS = 43,
+  opCOMMA = 44,
+  opDASH = 45,
+  opSLASH = 47,
+  opCOLON = 58,
+  opSEMICOLON = 59,
+  opEQUAL = 61,
+  opLSQUARE = 91,
+  opRSQUARE = 93,
+  opLCURLY = 123,
+  // opPIPE = 124,
+  opRCURLY = 125,
+  opCOMPARE = 128,
+};
+
+enum Type {
+  tEOF = -1,
+  tINVALID = 0,
+  tKEYWORD = 1,
+  tIDENTIFIER,
+  tSTRING,
+  tOPERATOR,
+  tCHARACTER,
+  tINTEGER,
+  tFLOAT
+};
 
 class Token final {
+  const Type type_;
+  const Location loc_;
+  union {
+    Keyword keyword;
+    Operator op;
+    int64_t integer;
+    const std::string *string;
+  } u_;
+
 public:
-  struct Location {
-    const uint32_t line;
-    const uint32_t col;
-
-    Location() : line(0), col(0) {}
-    Location(uint32_t l, uint32_t c) : line(l), col(c) {}
-  };
-
-  enum Keyword {
-    kwINVALID = -1,
-    kwFN = 1,
-    kwVAR,
-    kwVAL,
-    kwIF,
-    kwELSE,
-    kwELIF,
-  };
-
-  enum Operator {
-    opINVALID = -1,
-    opLPAREN = 40,
-    opRPAREN = 41,
-    opSTAR = 42,
-    opPLUS = 43,
-    opCOMMA = 44,
-    opDASH = 45,
-    opSLASH = 47,
-    opCOLON = 58,
-    opSEMICOLON = 59,
-    opEQUAL = 61,
-    opLSQUARE = 91,
-    opRSQUARE = 93,
-    opLCURLY = 123,
-    // opPIPE = 124,
-    opRCURLY = 125,
-    opCOMPARE = 128,
-  };
-
-  enum Type {
-    tEOF = -1,
-    tINVALID = 0,
-    tKEYWORD = 1,
-    tIDENTIFIER,
-    tSTRING,
-    tOPERATOR,
-    tCHARACTER,
-    tINTEGER,
-    tFLOAT
-  };
-
   Token(const Type type, const Location loc) : type_(type), loc_(loc){};
   Token(const Token &) = delete;
   Token(Token &&) = delete;
@@ -139,18 +149,9 @@ public:
     std::unique_ptr<Token> token = std::make_unique<Token>(type, loc);
     return token;
   }
-
-private:
-  const Type type_;
-  const Location loc_;
-  union {
-    Keyword keyword;
-    Operator op;
-    int64_t integer;
-    const std::string *string;
-  } u_;
 };
 
+} // namespace lex
 } // namespace compiler
 } // namespace lang
 

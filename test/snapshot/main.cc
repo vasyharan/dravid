@@ -12,22 +12,22 @@
 namespace lang {
 namespace compiler {
 
-class LoggingLexer : public compiler::ILexer {
-  compiler::Lexer lexer_;
+class LoggingLexer : public lex::ILexer {
+  lex::Lexer lexer_;
   std::stringstream outbuf_;
   bool eof_;
 
 public:
-  LoggingLexer(Context &ctx) : lexer_{Lexer(ctx)}, eof_(false) {}
+  LoggingLexer(Context &ctx) : lexer_{lex::Lexer(ctx)}, eof_(false) {}
   ~LoggingLexer() { finish(); }
 
-  std::unique_ptr<Token> lex() override {
+  std::unique_ptr<lex::Token> lex() override {
     auto token = lexer_.lex();
     print(*token);
     return token;
   }
 
-  std::vector<std::unique_ptr<Token>> reset() override {
+  std::vector<std::unique_ptr<lex::Token>> reset() override {
     auto tokens = lexer_.reset();
     for (auto it = tokens.begin(); it != tokens.end(); ++it) {
       print(**it);
@@ -43,7 +43,7 @@ public:
     return outbuf_;
   }
 
-  void print(const Token &token) {
+  void print(const lex::Token &token) {
     if (eof_)
       return;
     if (token.eof())
