@@ -320,8 +320,8 @@ public:
 namespace cfg {
 
 class BasicBlock {
-  std::vector<std::shared_ptr<const ast::Expression>> _expressions;
-  std::vector<std::unique_ptr<const BasicBlock>> _exits;
+  std::vector<std::shared_ptr<const ast::Expression>> expressions_;
+  std::vector<std::unique_ptr<const BasicBlock>> exits_;
 
 public:
   BasicBlock() {}

@@ -5,10 +5,10 @@ namespace compiler {
 namespace cfg {
 
 void BasicBlock::emplace_back(std::shared_ptr<const ast::Expression> expr) {
-  _expressions.push_back(expr);
+  expressions_.push_back(expr);
 }
 
-bool BasicBlock::empty() const { return _expressions.empty(); }
+bool BasicBlock::empty() const { return expressions_.empty(); }
 
 CFGParser::CFGParser(Context &ctx) : _ctx(ctx), _block(nullptr) {}
 CFGParser::~CFGParser() {}

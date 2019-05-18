@@ -13,8 +13,8 @@ namespace compiler {
 namespace codegen {
 
 Codegen::Codegen(Context &ctx)
-    : _ctx(ctx), _module(*(new llvm::Module(ctx.name(), ctx.llvm()))),
-      _builder(ctx.llvm()), _fpm(&_module) {
+    : ctx_(ctx), module_(*(new llvm::Module(ctx.name(), ctx.llvm()))),
+      builder_(ctx.llvm()), fpm_(&module_) {
   // Do simple "peephole" optimizations and bit-twiddling optzns.
   // _fpm.add(llvm::createInstructionCombiningPass());
   // Reassociate expressions.
@@ -27,104 +27,104 @@ Codegen::Codegen(Context &ctx)
 
 Codegen::~Codegen() {}
 
-const llvm::Module &Codegen::module() const { return _module; }
+const llvm::Module &Codegen::module() const { return module_; }
 
-void Codegen::generate() { _ctx.visit_ast(*this); }
+void Codegen::generate() { ctx_.visit_ast(*this); }
 
 // void Codegen::visit(std::shared_ptr<const ast::Expression>) {}
 
 void Codegen::visit(std::shared_ptr<const ast::Assignment> asgn) {
-  _ctx.report_error(err::unknown("assignment codegen unimplemented", ""));
+  ctx_.report_error(err::unknown("assignment codegen unimplemented", ""));
 }
 
 void Codegen::visit(std::shared_ptr<const ast::BinaryExpression> expr) {
   expr->left().accept(*this);
   expr->right().accept(*this);
 
-  auto right = _stack.top();
-  _stack.pop();
-  auto left = _stack.top();
-  _stack.pop();
+  auto right = stack_.top();
+  stack_.pop();
+  auto left = stack_.top();
+  stack_.pop();
 
   Value *val = nullptr;
   switch (expr->op()) {
   case '+':
-    val = _builder.CreateAdd(left, right, "addtmp");
+    val = builder_.CreateAdd(left, right, "addtmp");
     break;
   case '-':
-    val = _builder.CreateSub(left, right, "subtmp");
+    val = builder_.CreateSub(left, right, "subtmp");
     break;
   case '*':
-    val = _builder.CreateMul(left, right, "multmp");
+    val = builder_.CreateMul(left, right, "multmp");
     break;
   case '/':
-    val = _builder.CreateExactSDiv(left, right, "divtmp");
+    val = builder_.CreateExactSDiv(left, right, "divtmp");
     break;
   default:
     // log error
     break;
   }
 
-  _stack.push(val);
+  stack_.push(val);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Call> call) {
-  Function *callee = _module.getFunction(call->name());
+  Function *callee = module_.getFunction(call->name());
   if (!callee) {
     // log error;
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
   if (callee->arg_size() != call->args().size()) {
     // log error;
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
   std::vector<Value *> args;
   for (auto &expr : call->args()) {
     expr->accept(*this);
-    auto arg = _stack.top();
-    _stack.pop();
+    auto arg = stack_.top();
+    stack_.pop();
     if (!arg) {
       // log error;
-      _stack.push(nullptr);
+      stack_.push(nullptr);
       return;
     }
     args.emplace_back(arg);
   }
 
-  auto val = _builder.CreateCall(callee, args, "calltmp");
-  _stack.push(val);
+  auto val = builder_.CreateCall(callee, args, "calltmp");
+  stack_.push(val);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Function> fn) {
-  Function *val = _module.getFunction(fn->proto().name());
+  Function *val = module_.getFunction(fn->proto().name());
   if (!val) {
     fn->proto().accept(*this);
-    auto created = _stack.top(); // function created by proto.
-    _stack.pop();
-    val = _module.getFunction(fn->proto().name());
+    auto created = stack_.top(); // function created by proto.
+    stack_.pop();
+    val = module_.getFunction(fn->proto().name());
     assert(created == val);
   }
   if (!val) {
     // report error.
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
   if (!val->empty()) {
     // return error (fn cannot be redefined).
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
-  BasicBlock *block = BasicBlock::Create(_ctx.llvm(), "entry", val);
-  _builder.SetInsertPoint(block);
+  BasicBlock *block = BasicBlock::Create(ctx_.llvm(), "entry", val);
+  builder_.SetInsertPoint(block);
 
   // values_.clear();
-  auto &scope = _ctx.push_scope();
+  auto &scope = ctx_.push_scope();
   for (auto &arg : val->args()) {
     scope.symbol_add(arg.getName(), &arg);
   }
@@ -133,104 +133,104 @@ void Codegen::visit(std::shared_ptr<const ast::Function> fn) {
     expr->accept(*this);
   }
 
-  Value *retval = _stack.top();
+  Value *retval = stack_.top();
   for (uint32_t i = 0; i < fn->body().size(); ++i) {
-    _stack.pop();
+    stack_.pop();
   }
   if (!retval) {
     val->eraseFromParent();
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
-  _builder.CreateRet(retval);
+  builder_.CreateRet(retval);
   verifyFunction(*val);
-  _fpm.run(*val);
+  fpm_.run(*val);
 
-  _stack.push(val);
+  stack_.push(val);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::If> expr) {
   expr->cond().accept(*this);
-  auto cond = _stack.top();
-  _stack.pop();
+  auto cond = stack_.top();
+  stack_.pop();
 
   if (!cond) {
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
-  cond = _builder.CreateICmpEQ(
-      cond, ConstantInt::get(_ctx.llvm(), APInt(64, 1, true)), "ifcond");
+  cond = builder_.CreateICmpEQ(
+      cond, ConstantInt::get(ctx_.llvm(), APInt(64, 1, true)), "ifcond");
 
-  Function *fn = _builder.GetInsertBlock()->getParent();
-  BasicBlock *thn = BasicBlock::Create(_ctx.llvm(), "then", fn);
-  BasicBlock *els = BasicBlock::Create(_ctx.llvm(), "else");
-  BasicBlock *mrg = BasicBlock::Create(_ctx.llvm(), "ifcont");
-  _builder.CreateCondBr(cond, thn, els);
+  Function *fn = builder_.GetInsertBlock()->getParent();
+  BasicBlock *thn = BasicBlock::Create(ctx_.llvm(), "then", fn);
+  BasicBlock *els = BasicBlock::Create(ctx_.llvm(), "else");
+  BasicBlock *mrg = BasicBlock::Create(ctx_.llvm(), "ifcont");
+  builder_.CreateCondBr(cond, thn, els);
 
   // THEN
-  _builder.SetInsertPoint(thn);
+  builder_.SetInsertPoint(thn);
   for (auto &expr : expr->thn()) {
     expr->accept(*this);
   }
-  Value *thnV = _stack.top();
+  Value *thnV = stack_.top();
   for (uint32_t i = 0; i < expr->thn().size(); ++i) {
-    _stack.pop();
+    stack_.pop();
   }
 
-  _builder.CreateBr(mrg);
-  thn = _builder.GetInsertBlock(); // codegen can change the block, so restore
+  builder_.CreateBr(mrg);
+  thn = builder_.GetInsertBlock(); // codegen can change the block, so restore
 
   // ELSE
   fn->getBasicBlockList().push_back(els);
-  _builder.SetInsertPoint(els);
+  builder_.SetInsertPoint(els);
   for (auto &expr : expr->els()) {
     expr->accept(*this);
   }
-  Value *elsV = _stack.top();
+  Value *elsV = stack_.top();
   for (uint32_t i = 0; i < expr->els().size(); ++i) {
-    _stack.pop();
+    stack_.pop();
   }
-  _builder.CreateBr(mrg);
-  els = _builder.GetInsertBlock(); // codegen can change the block, so restore
+  builder_.CreateBr(mrg);
+  els = builder_.GetInsertBlock(); // codegen can change the block, so restore
 
   // MERGE
   fn->getBasicBlockList().push_back(mrg);
-  _builder.SetInsertPoint(mrg);
-  PHINode *phi = _builder.CreatePHI(Type::getInt64Ty(_ctx.llvm()), 2, "iftmp");
+  builder_.SetInsertPoint(mrg);
+  PHINode *phi = builder_.CreatePHI(Type::getInt64Ty(ctx_.llvm()), 2, "iftmp");
 
   phi->addIncoming(thnV, thn);
   phi->addIncoming(elsV, els);
-  _stack.push(phi);
+  stack_.push(phi);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Identifier> id) {
-  auto &scope = _ctx.top_scope();
+  auto &scope = ctx_.top_scope();
   auto val = scope.symbol_lookup(id->name());
   if (!val) {
     // report error
-    _stack.push(nullptr);
+    stack_.push(nullptr);
     return;
   }
 
-  _stack.push(val);
+  stack_.push(val);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Integer> integer) {
-  auto val = ConstantInt::get(_ctx.llvm(), APInt(64, integer->value(), true));
-  _stack.push(val);
+  auto val = ConstantInt::get(ctx_.llvm(), APInt(64, integer->value(), true));
+  stack_.push(val);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Parameter> param) {}
 
 void Codegen::visit(std::shared_ptr<const ast::Prototype> proto) {
   std::vector<Type *> params(proto->params().size(),
-                             Type::getInt64Ty(_ctx.llvm()));
-  FunctionType *fntype = FunctionType::get(Type::getInt64Ty(_ctx.llvm()),
+                             Type::getInt64Ty(ctx_.llvm()));
+  FunctionType *fntype = FunctionType::get(Type::getInt64Ty(ctx_.llvm()),
                                            params, false /* IsVarArgs */);
   Function *fn = Function::Create(fntype, Function::ExternalLinkage,
-                                  proto->name(), &_module);
+                                  proto->name(), &module_);
 
   auto arg_it = fn->args().begin();
   auto param_it = proto->params().begin();
@@ -239,18 +239,18 @@ void Codegen::visit(std::shared_ptr<const ast::Prototype> proto) {
     (*arg_it).setName((*param_it)->name());
   }
 
-  _stack.push(fn);
+  stack_.push(fn);
 }
 
 void Codegen::visit(std::shared_ptr<const ast::TupleAssignment> param) {
-  _ctx.report_error(err::unknown("tuple assignment codegen unimplemented", ""));
+  ctx_.report_error(err::unknown("tuple assignment codegen unimplemented", ""));
 }
 
 void Codegen::visit(std::shared_ptr<const ast::Value> v) {
   v->value().accept(*this);
-  auto val = _stack.top();
+  auto val = stack_.top();
   if (v->constant()) {
-    _ctx.top_scope().symbol_add(v->name(), val);
+    ctx_.top_scope().symbol_add(v->name(), val);
   }
 }
 

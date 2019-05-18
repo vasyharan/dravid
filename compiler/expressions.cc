@@ -153,7 +153,7 @@ namespace cfg {
 
 void BasicBlock::print(std::ostream &out, int indent) const {
   out << "(bb ";
-  for (auto &expr : _expressions) {
+  for (auto &expr : expressions_) {
     out << "\n" << std::string(indent + 3, ' ');
     (expr)->print(out, indent + 4);
   }
