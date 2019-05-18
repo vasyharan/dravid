@@ -151,7 +151,7 @@ const std::string Token::string() const {
     break;
   }
 
-  buf << " " << loc_.line() << ":" << loc_.col();
+  buf << " " << loc_.line << ":" << loc_.col;
 
   buf << ')';
   return buf.str();

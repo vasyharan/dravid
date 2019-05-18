@@ -11,15 +11,11 @@ namespace compiler {
 class Token final {
 public:
   struct Location {
-    uint32_t line_;
-    uint32_t col_;
+    const uint32_t line;
+    const uint32_t col;
 
-  public:
-    Location() : line_(0), col_(0) {}
-    Location(uint32_t line, uint32_t col) : line_(line), col_(col) {}
-
-    uint32_t line() const { return line_; }
-    uint32_t col() const { return col_; }
+    Location() : line(0), col(0) {}
+    Location(uint32_t l, uint32_t c) : line(l), col(c) {}
   };
 
   enum Keyword {
@@ -64,6 +60,7 @@ public:
     tFLOAT
   };
 
+  Token(const Type type, const Location loc) : type_(type), loc_(loc){};
   Token(const Token &) = delete;
   Token(Token &&) = delete;
   ~Token();
@@ -100,54 +97,52 @@ public:
 
   const std::string string() const;
 
-  static std::unique_ptr<Token> make_invalid() { return make(Type::tINVALID); }
-  static std::unique_ptr<Token> make_eof() { return make(Type::tEOF); }
+  static std::unique_ptr<Token> make_invalid() {
+    // TODO: introduce a constant here
+    return make(Type::tINVALID, Location());
+  }
+  static std::unique_ptr<Token> make_eof() {
+    // TODO: introduce a constant here
+    return make(Type::tEOF, Location());
+  }
   static std::unique_ptr<Token> make_op(const Operator op, const Location loc) {
-    auto token = make(Type::tOPERATOR);
+    auto token = make(Type::tOPERATOR, loc);
     token->u_.op = op;
-    token->loc_ = loc;
     return token;
   }
   static std::unique_ptr<Token> make_keyword(const Keyword keyword,
                                              const Location loc) {
-    auto token = make(Type::tKEYWORD);
+    auto token = make(Type::tKEYWORD, loc);
     token->u_.keyword = keyword;
-    token->loc_ = loc;
     return token;
   }
   static std::unique_ptr<Token>
   make_identifier(std::unique_ptr<std::string> name, const Location loc) {
-    auto token = make(Type::tIDENTIFIER);
+    auto token = make(Type::tIDENTIFIER, loc);
     token->u_.string = name.release();
-    token->loc_ = loc;
     return token;
   }
   static std::unique_ptr<Token> make_string(std::unique_ptr<std::string> name,
                                             const Location loc) {
-    auto token = make(Type::tIDENTIFIER);
+    auto token = make(Type::tIDENTIFIER, loc);
     token->u_.string = name.release();
-    token->loc_ = loc;
     return token;
   }
   static std::unique_ptr<Token> make_integer(const int value,
                                              const Location loc) {
-    auto token = make(Type::tINTEGER);
+    auto token = make(Type::tINTEGER, loc);
     token->u_.integer = value;
-    token->loc_ = loc;
+    return token;
+  }
+
+  static std::unique_ptr<Token> make(const Type type, const Location loc) {
+    std::unique_ptr<Token> token = std::make_unique<Token>(type, loc);
     return token;
   }
 
 private:
-  static std::unique_ptr<Token> make(const Type type) {
-    auto token = new Token(type);
-    return std::unique_ptr<Token>(token);
-  }
-  Token() : type_(Type::tINVALID){};
-  Token(const Type type) : type_(type){};
-  void copy(const Token &);
-
-  Type type_;
-  Location loc_;
+  const Type type_;
+  const Location loc_;
   union {
     Keyword keyword;
     Operator op;
